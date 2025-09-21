@@ -9,7 +9,11 @@ public class PartyRoomService
 
     static PartyRoomService()
     {
-        PartyRooms = new List<PartyRoom> { };
+        PartyRooms = new List<PartyRoom>
+        { 
+            // Default party room for demonstration purposes
+            new PartyRoom { Id = nextId++, Name = "Default room", Capacity = 10, IsPrivate = false }
+        };
     }
 
     public static List<PartyRoom> GetAll() => PartyRooms;
