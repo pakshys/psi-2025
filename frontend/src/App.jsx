@@ -1,53 +1,33 @@
 import { useEffect, useState } from 'react'
 import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
+
+import { Routes, Route, useNavigate } from 'react-router-dom'
 import './App.css'
+import PartyRooms from "./components/PartyRooms";
 
-
-function App() {
-  const [forecast, setForecast] = useState([]);
-
-  useEffect(() => {
-    fetch("/WeatherForecast") // thanks to Vite proxy, no need for full URL
-      .then(res => {
-        if (!res.ok) {
-          throw new Error("Network response was not ok");
-        }
-        return res.json();
-      })
-      .then(data => setForecast(data))
-      .catch(err => console.error("Fetch error:", err));
-  }, []);
+function HomePage() {
+  const navigate = useNavigate();
 
   return (
-    <div style={{ padding: "1rem" }}>
-      <h1>Weather Forecast</h1>
-      {forecast.length === 0 ? (
-        <p>Loading...</p>
-      ) : (
-        <table border="1" cellPadding="6">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Temp (°C)</th>
-              <th>Temp (°F)</th>
-              <th>Summary</th>
-            </tr>
-          </thead>
-          <tbody>
-            {forecast.map((item, index) => (
-              <tr key={index}>
-                <td>{new Date(item.date).toLocaleDateString()}</td>
-                <td>{item.temperatureC}</td>
-                <td>{item.temperatureF}</td>
-                <td>{item.summary}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+    <div className = "main-container">
+      <h1>Welcome to CoTunes</h1>
+      <p>Connect with friends and enjoy music together.</p>
+      <button className = "main-button" onClick={() => navigate("/partyrooms")}> 
+        Get Started
+      </button>
     </div>
+  );
+} 
+
+function App() {
+  return (
+    <Routes>
+      <Route path = "/" element = {<HomePage/>} />
+      <Route path = "/partyrooms" element = {<PartyRooms/>} />
+    </Routes>
   );
 }
 
 export default App;
+

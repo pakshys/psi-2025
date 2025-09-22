@@ -1,0 +1,33 @@
+.partyroom-container {
+  padding: 2rem;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  text-align: center;
+}
+
+.partyroom-container h2 {
+  font-size: 2em;
+  margin-bottom: 1rem;
+}
+
+.partyroom-container p {
+  font-size: 1.1em;
+  color: #ccc;
+}
+
+.partyroom-container ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+.partyroom-container li {
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 0.5rem 0;
+  background-color: #1e1e1e;
+  color: rgba(255, 255, 255, 0.87);
+}
