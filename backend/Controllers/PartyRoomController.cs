@@ -37,6 +37,42 @@ public class PartyRoomController : ControllerBase
         return CreatedAtAction(nameof(Get), new { id = partyRoom.Id }, partyRoom);
     }
 
+    [HttpPost("{id}/join)")]
+    public IActionResult Join(int id)
+    {
+        try
+        {
+            PartyRoomService.Join(id);
+            return Ok();
+        }
+        catch (ArgumentException)
+        {
+            return NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    [HttpPost("{id}/leave")]
+    public IActionResult Leave(int id)
+    {
+        try
+        {
+            PartyRoomService.Leave(id);
+            return Ok();
+        }
+        catch (ArgumentException)
+        {
+            return NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
     // PUT action
     [HttpPut("{id}")]
     public IActionResult Update(int id, PartyRoom partyRoom)
