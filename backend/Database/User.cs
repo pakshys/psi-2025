@@ -1,9 +1,12 @@
 using Microsoft.AspNetCore.Identity;
+using System.ComponentModel.DataAnnotations;
 
 namespace backend.Database
 {
     public class User : IdentityUser
     {
-        // Can be extended to store extra stuff about users
+        [Required]
+        [MaxLength(64)]
+        public string Nickname { get; set; } = string.Empty;
     }
 }

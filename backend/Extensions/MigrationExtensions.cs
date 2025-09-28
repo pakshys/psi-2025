@@ -1,9 +1,9 @@
 using backend.Database;
 using Microsoft.EntityFrameworkCore;
 
-namespace backend.Helpers;
+namespace backend.Extensions;
 
-public static class MigrationHelpers
+public static class MigrationExtensions
 {
 	public static void ApplyMigrations(this IApplicationBuilder app)
 	{

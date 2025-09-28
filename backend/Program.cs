@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using backend.Helpers;
+using backend.Extensions;
 using backend.Database;
 
 var builder = WebApplication.CreateBuilder(args);
