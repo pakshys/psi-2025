@@ -31,3 +31,19 @@
   background-color: #1e1e1e;
   color: rgba(255, 255, 255, 0.87);
 }
+
+.join-room-button {
+  width: 100%;
+  padding: 1rem;
+  margin: 0.5rem 0;
+  background-color: #2c2c2c;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.join-room-button:hover {
+  background-color: #3c3c3c;
+}
