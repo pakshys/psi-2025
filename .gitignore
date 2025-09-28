@@ -22,6 +22,7 @@ obj/
 *.sln.docstates
 
 # IDE / Editor settings
+.vs/
 .vscode/*
 !.vscode/extensions.json
 .idea/
