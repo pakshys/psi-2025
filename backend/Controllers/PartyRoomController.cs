@@ -37,13 +37,16 @@ public class PartyRoomController : ControllerBase
         return CreatedAtAction(nameof(Get), new { id = partyRoom.Id }, partyRoom);
     }
 
-    [HttpPost("{id}/join)")]
+    // POST join action
+    [HttpPost("{id}/join")]
     public IActionResult Join(int id)
     {
         try
         {
             PartyRoomService.Join(id);
-            return Ok();
+
+            var partyRoom = PartyRoomService.Get(id);
+            return Ok(partyRoom);
         }
         catch (ArgumentException)
         {
@@ -51,17 +54,20 @@ public class PartyRoomController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(ex.Message);
+            return BadRequest(new { error = ex.Message });
         }
     }
 
+    // POST leave action
     [HttpPost("{id}/leave")]
     public IActionResult Leave(int id)
     {
         try
         {
             PartyRoomService.Leave(id);
-            return Ok();
+
+            var partyRoom = PartyRoomService.Get(id);
+            return Ok(partyRoom);
         }
         catch (ArgumentException)
         {
