@@ -15,8 +15,6 @@ public class ApplicationDbContext : IdentityDbContext<User>
     {
         base.OnModelCreating(builder);
 
-        builder.Entity<User>().Property(u => u.Nickname).HasMaxLength(64);
-
         builder.HasDefaultSchema("identity");
     }
 }
