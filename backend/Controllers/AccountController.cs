@@ -50,8 +50,11 @@ namespace backend.Controllers
 			if (!ModelState.IsValid)
 				return BadRequest(ModelState);
 
-			var result = await _signInManager.PasswordSignInAsync(
-				model.Email,
+            User? user = await _userManager.FindByNameAsync(model.Login)
+                 ?? await _userManager.FindByEmailAsync(model.Login);
+
+            var result = await _signInManager.PasswordSignInAsync(
+				user.UserName,
 				model.Password,
 				model.RememberMe,
 				lockoutOnFailure: false
