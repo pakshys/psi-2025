@@ -1,4 +1,5 @@
 using backend.Models;
+using Microsoft.AspNetCore.Components.Endpoints;
 
 namespace backend.Services;
 
@@ -30,6 +31,30 @@ public class PartyRoomService
 
         partyRoom.Id = nextId++;
         PartyRooms.Add(partyRoom);
+    }
+
+    public static void Join(int id)
+    {
+        var partyRoom = Get(id);
+        if (partyRoom is null)
+            throw new ArgumentException("Party room not found.");
+
+        if (partyRoom.GuestsCount >= partyRoom.Capacity)
+            throw new InvalidOperationException("Party room is full.");
+
+        partyRoom.GuestsCount++;
+    }
+
+    public static void Leave(int id)
+    {
+        var partyRoom = Get(id);
+        if (partyRoom is null)
+            throw new ArgumentException("Party room not found.");
+
+        if (partyRoom.GuestsCount <= 0)
+            throw new InvalidOperationException("No guests to leave the party room.");
+
+        partyRoom.GuestsCount--;
     }
 
     public static void Delete(int id)
