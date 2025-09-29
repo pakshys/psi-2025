@@ -44,7 +44,13 @@ function RoomPage() {
     <div style={{ padding: "2rem", minHeight: "100vh" }}>
       <div style={{ position: "absolute", top: "1rem", right: "1rem" }}>
         Members: {room.guestsCount} / {room.capacity}
-        <button className="leave-room-button" onClick={() => handleLeaveRoom(room.id)}>Leave Room</button>
+        <button
+          className="leave-room-button"
+          style={{ marginLeft: "1rem" }}
+          onClick={() => handleLeaveRoom(room.id)}
+        >
+          Leave Room
+        </button>
       </div>
       <h2>{room.name}</h2>
       <p>{room.isPrivate ? "Private" : "Public"} room</p>
