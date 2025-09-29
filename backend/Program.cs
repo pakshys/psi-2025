@@ -23,7 +23,10 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // Configure authentication and authorization
-builder.Services.AddAuthentication(IdentityConstants.BearerScheme).AddBearerToken(IdentityConstants.BearerScheme);
+builder.Services.AddIdentity<User, IdentityRole>()
+    .AddEntityFrameworkStores<ApplicationDbContext>()
+    .AddDefaultTokenProviders();
+
 builder.Services.AddAuthorization();
 
 builder.Services.AddIdentityCore<User>(options =>
@@ -56,6 +59,5 @@ app.UseCors("AllowFrontend");
 
 app.MapControllers();
 
-app.MapIdentityApi<User>();
 
 app.Run();
