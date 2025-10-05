@@ -49,6 +49,10 @@ builder.Services.AddScoped<PartyRoomService>();
 // Register SignalR for real-time functionalities
 builder.Services.AddSignalR();
 
+builder.Services.AddScoped<UserProfileService>();
+
+builder.Services.AddScoped<FriendshipService>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

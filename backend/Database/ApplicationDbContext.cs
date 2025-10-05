@@ -16,6 +16,9 @@ public class ApplicationDbContext : IdentityDbContext<User>
     // DbSet for PartyRoom entity
     public DbSet<PartyRoom> PartyRooms => Set<PartyRoom>();
 
+    public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
+    public DbSet<Friendship> Friendships => Set<Friendship>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
