@@ -1,6 +1,8 @@
+using backend.Hubs;
 using backend.Models;
 using backend.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 
 namespace backend.Controllers;
 
@@ -8,20 +10,27 @@ namespace backend.Controllers;
 [Route("[controller]")]
 public class PartyRoomController : ControllerBase
 {
-    public PartyRoomController()
+    private readonly PartyRoomService _service;
+    private readonly IHubContext<PartyRoomHub> _hubContext;
+
+    public PartyRoomController(PartyRoomService service, IHubContext<PartyRoomHub> hubContext)
     {
+        _service = service;
+        _hubContext = hubContext;
     }
 
     // GET all action
     [HttpGet]
-    public ActionResult<List<PartyRoom>> GetAll() =>
-        PartyRoomService.GetAll();
+    public async Task<ActionResult<List<PartyRoom>>> GetAll()
+    {
+        return await _service.GetAllAsync();
+    }
 
     // GET by id action
     [HttpGet("{id}")]
-    public ActionResult<PartyRoom> Get(int id)
+    public async Task<ActionResult<PartyRoom>> Get(int id)
     {
-        var partyRoom = PartyRoomService.Get(id);
+        var partyRoom = await _service.GetByIdAsync(id);
 
         if (partyRoom is null)
             return NotFound();
@@ -29,26 +38,44 @@ public class PartyRoomController : ControllerBase
         return partyRoom;
     }
 
-    // POST action
+    // POST create action
     [HttpPost]
-    public IActionResult Create(PartyRoom partyRoom)
+    public async Task<IActionResult> Create(PartyRoom partyRoom)
     {
-        PartyRoomService.Add(partyRoom);
-        return CreatedAtAction(nameof(Get), new { id = partyRoom.Id }, partyRoom);
+        try
+        {
+            var createdRoom = await _service.CreateAsync(partyRoom);
+
+            // Notify all clients about the created party room
+            await _hubContext.Clients.All.SendAsync("PartyRoomCreated", createdRoom);
+
+            return CreatedAtAction(nameof(Get), new { id = createdRoom.Id }, createdRoom);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
     }
 
     // POST join action
     [HttpPost("{id}/join")]
-    public IActionResult Join(int id)
+    public async Task<IActionResult> Join(int id)
     {
         try
         {
-            PartyRoomService.Join(id);
+            await _service.JoinAsync(id);
+            var partyRoom = await _service.GetByIdAsync(id);
 
-            var partyRoom = PartyRoomService.Get(id);
+            // Notify clients in the room about the new user joining
+            await _hubContext.Clients.Group(id.ToString())
+                .SendAsync("UserJoined", id, partyRoom!.GuestsCount);
+
+            // Notify all clients about the updated party room
+            await _hubContext.Clients.All.SendAsync("PartyRoomUpdated", partyRoom);
+
             return Ok(partyRoom);
         }
-        catch (ArgumentException)
+        catch (KeyNotFoundException)
         {
             return NotFound();
         }
@@ -60,16 +87,24 @@ public class PartyRoomController : ControllerBase
 
     // POST leave action
     [HttpPost("{id}/leave")]
-    public IActionResult Leave(int id)
+    public async Task<IActionResult> Leave(int id)
     {
         try
         {
-            PartyRoomService.Leave(id);
+            await _service.LeaveAsync(id);
+            var partyRoom = await _service.GetByIdAsync(id);
 
-            var partyRoom = PartyRoomService.Get(id);
+            // Notify clients in the room about the user leaving
+            await _hubContext.Clients.Group(id.ToString())
+                .SendAsync("UserLeft", id, partyRoom!.GuestsCount);
+
+            // Notify all clients about the updated party room
+            await _hubContext.Clients.All.SendAsync("PartyRoomUpdated", partyRoom);
+
+
             return Ok(partyRoom);
         }
-        catch (ArgumentException)
+        catch (KeyNotFoundException)
         {
             return NotFound();
         }
@@ -79,31 +114,49 @@ public class PartyRoomController : ControllerBase
         }
     }
 
-    // PUT action
+    // PUT update action
     [HttpPut("{id}")]
-    public IActionResult Update(int id, PartyRoom partyRoom)
+    public async Task<IActionResult> Update(int id, PartyRoom partyRoom)
     {
         if (id != partyRoom.Id)
-            return BadRequest();
+            return BadRequest(new { error = "ID in URL does not match ID in body." });
 
-        var existingPartyRoom = PartyRoomService.Get(id);
-        if (existingPartyRoom is null)
+        try
+        {
+            await _service.UpdateAsync(partyRoom);
+
+            // Notify all clients about the updated party room
+            await _hubContext.Clients.All.SendAsync("PartyRoomUpdated", partyRoom);
+
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
             return NotFound();
-
-        PartyRoomService.Update(partyRoom);
-        return NoContent();
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        
     }
 
     // DELETE action
     [HttpDelete("{id}")]
-    public IActionResult Detele(int id)
+    public async Task<IActionResult> Delete(int id)
     {
-        var partyRoom = PartyRoomService.Get(id);
+        try
+        {
+            await _service.DeleteAsync(id);
 
-        if (partyRoom is null)
+            // Notify all clients about the deleted party room
+            await _hubContext.Clients.All.SendAsync("PartyRoomDeleted", id);
+
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
             return NotFound();
-
-        PartyRoomService.Delete(id);
-        return NoContent();
+        }
     }
 }

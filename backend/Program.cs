@@ -2,6 +2,9 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using backend.Extensions;
 using backend.Database;
+using backend.Models;
+using backend.Services;
+using backend.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -40,6 +43,12 @@ builder.Services.AddIdentityCore<User>(options =>
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("Database")));
 
+// Register PartyRoomService for dependency injection
+builder.Services.AddScoped<PartyRoomService>();
+
+// Register SignalR for real-time functionalities
+builder.Services.AddSignalR();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -59,5 +68,7 @@ app.UseCors("AllowFrontend");
 
 app.MapControllers();
 
+// Map SignalR PartyRoomHub
+app.MapHub<PartyRoomHub>("/hubs/partyroom");
 
 app.Run();
