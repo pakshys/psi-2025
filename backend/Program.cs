@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using backend.Extensions;
 using backend.Database;
+using backend.Models;
 using backend.Services;
 
 var builder = WebApplication.CreateBuilder(args);
