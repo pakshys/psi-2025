@@ -44,7 +44,7 @@ public class PartyRoomService
     {
         var room = await GetByIdAsync(id);
         if (room == null)
-            throw new ArgumentException("Party room not found.");
+            throw new KeyNotFoundException("Party room not found.");
 
         if (room.GuestsCount >= room.Capacity)
             throw new InvalidOperationException("Party room is full.");
@@ -58,7 +58,7 @@ public class PartyRoomService
     {
         var room = await GetByIdAsync(id);
         if (room == null)
-            throw new ArgumentException("Party room not found.");
+            throw new KeyNotFoundException("Party room not found.");
 
         if (room.GuestsCount <= 0)
             throw new InvalidOperationException("Party room is already empty.");
@@ -72,7 +72,7 @@ public class PartyRoomService
     {
         var existingRoom = await GetByIdAsync(updatedRoom.Id);
         if (existingRoom == null)
-            throw new ArgumentException("Party room not found.");
+            throw new KeyNotFoundException("Party room not found.");
 
         if (string.IsNullOrWhiteSpace(updatedRoom.Name))
             throw new ArgumentException("Party room name cannot be empty.");
@@ -93,7 +93,7 @@ public class PartyRoomService
     {
         var room = await GetByIdAsync(id);
         if (room == null)
-            throw new ArgumentException("Party room not found.");
+            throw new KeyNotFoundException("Party room not found.");
 
         _context.PartyRooms.Remove(room);
         await _context.SaveChangesAsync();
