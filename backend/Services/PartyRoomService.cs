@@ -1,79 +1,101 @@
+using backend.Database;
 using backend.Models;
-using Microsoft.AspNetCore.Components.Endpoints;
+using Microsoft.EntityFrameworkCore;
 
 namespace backend.Services;
 
 public class PartyRoomService
 {
-    private static List<PartyRoom> PartyRooms { get; }
-    private static int nextId = 1;
+    private readonly ApplicationDbContext _context;
 
-    static PartyRoomService()
+    public PartyRoomService(ApplicationDbContext context)
     {
-        PartyRooms = new List<PartyRoom>
-        { 
-            // Default party room for demonstration purposes
-            new PartyRoom { Id = nextId++, Name = "Default room", Capacity = 10, IsPrivate = false }
-        };
+        _context = context;
     }
 
-    public static List<PartyRoom> GetAll() => PartyRooms;
+    // Get all rooms
+    public async Task<List<PartyRoom>> GetAllAsync()
+    {
+        return await _context.PartyRooms.ToListAsync();
+    }
 
-    public static PartyRoom? Get(int id) => PartyRooms.FirstOrDefault(p => p.Id == id);
+    // Get room by ID
+    public async Task<PartyRoom?> GetByIdAsync(int id)
+    {
+        return await _context.PartyRooms.FindAsync(id);
+    }
 
-    public static void Add(PartyRoom partyRoom)
+    // Create a new room
+    public async Task<PartyRoom> CreateAsync(PartyRoom partyRoom)
     {
         if (string.IsNullOrWhiteSpace(partyRoom.Name))
-            throw new ArgumentException("Name cannot be empty.");
+            throw new ArgumentException("Party room name cannot be empty.");
 
         if (partyRoom.Capacity <= 0)
-            throw new ArgumentException("Capacity must be greater than zero.");
+            throw new ArgumentException("Party room capacity must be greater than zero.");
 
-        partyRoom.Id = nextId++;
-        PartyRooms.Add(partyRoom);
+        _context.PartyRooms.Add(partyRoom);
+        await _context.SaveChangesAsync();
+        return partyRoom;
     }
 
-    public static void Join(int id)
+    // Join a room
+    public async Task JoinAsync(int id)
     {
-        var partyRoom = Get(id);
-        if (partyRoom is null)
+        var room = await GetByIdAsync(id);
+        if (room == null)
             throw new ArgumentException("Party room not found.");
 
-        if (partyRoom.GuestsCount >= partyRoom.Capacity)
+        if (room.GuestsCount >= room.Capacity)
             throw new InvalidOperationException("Party room is full.");
 
-        partyRoom.GuestsCount++;
+        room.GuestsCount++;
+        await _context.SaveChangesAsync();
     }
 
-    public static void Leave(int id)
+    // Leave a room
+    public async Task LeaveAsync(int id)
     {
-        var partyRoom = Get(id);
-        if (partyRoom is null)
+        var room = await GetByIdAsync(id);
+        if (room == null)
             throw new ArgumentException("Party room not found.");
 
-        if (partyRoom.GuestsCount <= 0)
-            throw new InvalidOperationException("No guests to leave the party room.");
+        if (room.GuestsCount <= 0)
+            throw new InvalidOperationException("Party room is already empty.");
 
-        partyRoom.GuestsCount--;
+        room.GuestsCount--;
+        await _context.SaveChangesAsync();
     }
 
-    public static void Delete(int id)
+    // Update a room
+    public async Task UpdateAsync(PartyRoom updatedRoom)
     {
-        var partyRoom = Get(id);
-        if (partyRoom is null)
-            return;
+        var existingRoom = await GetByIdAsync(updatedRoom.Id);
+        if (existingRoom == null)
+            throw new ArgumentException("Party room not found.");
 
-        PartyRooms.Remove(partyRoom);
+        if (string.IsNullOrWhiteSpace(updatedRoom.Name))
+            throw new ArgumentException("Party room name cannot be empty.");
+
+        if (updatedRoom.Capacity <= 0)
+            throw new ArgumentException("Party room capacity must be greater than zero.");
+
+        if (updatedRoom.Capacity < existingRoom.GuestsCount)
+            throw new InvalidOperationException("New capacity cannot be less than current guests count.");
+
+        existingRoom.Name = updatedRoom.Name;
+        existingRoom.Capacity = updatedRoom.Capacity;
+        await _context.SaveChangesAsync();
     }
 
-    public static void Update(PartyRoom partyRoom)
+    // Delete a room
+    public async Task DeleteAsync(int id)
     {
-        var index = PartyRooms.FindIndex(p => p.Id == partyRoom.Id);
-        if (index == -1)
-            return;
+        var room = await GetByIdAsync(id);
+        if (room == null)
+            throw new ArgumentException("Party room not found.");
 
-        PartyRooms[index] = partyRoom;
+        _context.PartyRooms.Remove(room);
+        await _context.SaveChangesAsync();
     }
-
-
 }
