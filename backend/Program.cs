@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using backend.Extensions;
 using backend.Database;
+using backend.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -39,6 +40,9 @@ builder.Services.AddIdentityCore<User>(options =>
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("Database")));
+
+// Register PartyRoomService for dependency injection
+builder.Services.AddScoped<PartyRoomService>();
 
 var app = builder.Build();
 
