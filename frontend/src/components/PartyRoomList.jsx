@@ -37,8 +37,14 @@ function PartyRoomList() {
   };
 
   return (
-    <div className="partyroom-container">
+    <div className="partyroom-page">
+    <div className="partyrooms-section">
       <h2>Party Rooms</h2>
+      <div className="buttons">
+        <button className="main-button">Create Room</button>
+        <button className="join-button">Join a Room</button>
+      </div>
+
       <ul>
         {rooms.map((room) => (
           <li key={room.id}>
@@ -46,16 +52,26 @@ function PartyRoomList() {
               className="join-room-button"
               onClick={() => handleJoinRoom(room.id)}
             >
-              <strong>{room.name}</strong> - Capacity: {room.capacity} - {" "}
+              <strong>{room.name}</strong> - Capacity: {room.capacity} -{" "}
               {room.isPrivate ? "Private" : "Public"}
             </button>
           </li>
         ))}
       </ul>
-      <button className="main-button" onClick={() => alert("Create Room clicked.")}> 
-        Create Room
-      </button>
     </div>
+
+    <div className="friendrooms-section">
+      <h3>Friend Rooms:</h3>
+      <div className="friend-grid">
+        {/* Placeholder friends (mock data) */}
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="friend-circle">
+            <span>Friend {i}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
   );
 }
 

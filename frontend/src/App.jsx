@@ -1,7 +1,9 @@
 import { Routes, Route, useNavigate } from 'react-router-dom'
 import './App.css'
+import Login from "./components/Login";
 import PartyRoomList from "./components/PartyRoomList";
 import PartyRoomPage from "./components/PartyRoomPage";
+import githubMark from "./assets/github-mark.svg";
 
 function HomePage() {
   const navigate = useNavigate();

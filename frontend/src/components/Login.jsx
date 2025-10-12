@@ -1,6 +1,5 @@
 import React from "react";
 import "./Login.css";
-//import illustration from "../assets/login-art.webp"; // your image file
 
 export default function Login() {
   return (
@@ -17,7 +16,6 @@ export default function Login() {
 
           <div className="social-login">
             <button>G</button>
-            <button></button>
             <button>f</button>
           </div>
         </div>
