@@ -47,8 +47,23 @@ namespace backend.Controllers
             if (user == null)
                 return Unauthorized();
 
-            await _service.SendRequestAsync(user.Id, targetUserId);
-            return Ok(new { message = "Friend request sent." });
+            try
+            {
+                var request = await _service.SendRequestAsync(user.Id, targetUserId);
+                return Ok(new { message = "Friend request sent.", requestId = request.Id });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { error = ex.Message });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { error = ex.Message });
+            }
         }
 
         [HttpPost("accept/{id}")]
@@ -58,8 +73,19 @@ namespace backend.Controllers
             if (user == null)
                 return Unauthorized();
 
-            await _service.AcceptRequestAsync(id, user.Id);
-            return Ok(new { message = "Friend request accepted." });
+            try
+            {
+                await _service.AcceptRequestAsync(id, user.Id);
+                return Ok(new { message = "Friend request accepted." });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Forbid(ex.Message);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { error = ex.Message });
+            }
         }
 
         [HttpDelete("reject/{id}")]
@@ -69,8 +95,19 @@ namespace backend.Controllers
             if (user == null)
                 return Unauthorized();
 
-            await _service.RejectRequestAsync(id, user.Id);
-            return Ok(new { message = "Friend request rejected." });
+            try
+            {
+                await _service.RejectRequestAsync(id, user.Id);
+                return Ok(new { message = "Friend request rejected." });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Forbid(ex.Message);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { error = ex.Message });
+            }
         }
     }
 }
