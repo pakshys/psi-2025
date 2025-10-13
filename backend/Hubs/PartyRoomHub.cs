@@ -4,6 +4,18 @@ namespace backend.Hubs
 {
     public class PartyRoomHub : Hub
     {
+        //Chat System
+        public async Task SendMessage(string roomId, string user, string message)
+        {
+            await Clients.Group(roomId).SendAsync("ReceiveMessage", user, message);
+        }
+
+        //Member count refresh
+        public async Task SendMessage(string roomId, string user, string message)
+        {
+            await Clients.Group(roomId).SendAsync("ReceiveMessage", user, message);
+        }
+
         // Join party room group
         public async Task JoinRoom(string roomId)
         {

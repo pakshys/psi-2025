@@ -1,19 +1,33 @@
+/* === Base Layout === */
 .partyroom-page {
   display: flex;
-  flex-direction: column;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
   gap: 2rem;
   padding: 3rem;
   min-height: 100vh;
-  background: radial-gradient(circle at right bottom, rgba(72, 149, 239, 0.2), rgba(217, 35, 159, 0.6) 60%, #121212 100%);
+  background: radial-gradient(
+    circle at right bottom,
+    rgba(72, 149, 239, 0.2),
+    rgba(217, 35, 159, 0.6) 60%,
+    #121212 100%
+  );
   color: #fff;
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
 }
 
+/* === Main Content === */
+.partyroom-main {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
 /* === Header === */
 .partyroom-header {
-  width: 80%;
+  width: 100%;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -43,7 +57,7 @@
   box-shadow: 0 0 15px rgba(255, 45, 187, 0.7);
 }
 
-/* === Info === */
+/* === Room Info === */
 .partyroom-info {
   background: rgba(20, 20, 20, 0.65);
   padding: 1rem 2rem;
@@ -52,7 +66,7 @@
   color: #ccc;
 }
 
-/* === Player === */
+/* === YouTube Player === */
 #player {
   margin: 20px auto;
   border-radius: 16px;
@@ -60,11 +74,11 @@
   overflow: hidden;
 }
 
-/* === Buttons === */
+/* === Video Controls === */
 .partyroom-buttons {
   display: flex;
   gap: 1.5rem;
-  margin-top: 20px;
+  margin-top: 10px;
 }
 
 .partyroom-buttons button {
@@ -80,4 +94,62 @@
 .partyroom-buttons button:hover {
   background: linear-gradient(135deg, #ff4fc5, #ff78d3);
   box-shadow: 0 0 20px rgba(255, 45, 187, 0.7);
+}
+
+/* === Chat Panel === */
+.chat-panel {
+  flex: 1;
+  background: rgba(25, 25, 25, 0.65);
+  border-radius: 16px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  height: 80vh;
+  box-shadow: 0 0 25px rgba(72, 149, 239, 0.3);
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+  margin-bottom: 1rem;
+  border-radius: 10px;
+}
+
+.chat-messages::-webkit-scrollbar {
+  width: 6px;
+}
+.chat-messages::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #ff2dbb, #cf49c9);
+  border-radius: 10px;
+}
+
+.chat-input {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.chat-input input {
+  flex: 1;
+  padding: 0.7rem 1rem;
+  border-radius: 10px;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  outline: none;
+}
+
+.chat-input button {
+  background: linear-gradient(135deg, #ff2dbb, #cf49c9);
+  border: none;
+  color: white;
+  padding: 0.7rem 1.4rem;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.chat-input button:hover {
+  background: linear-gradient(135deg, #ff4fc5, #ff78d3);
+  box-shadow: 0 0 15px rgba(255, 45, 187, 0.7);
 }

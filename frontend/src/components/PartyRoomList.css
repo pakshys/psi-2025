@@ -40,8 +40,7 @@
   margin-bottom: 2rem;
 }
 
-.main-button,
-.join-button {
+.main-button {
   background: linear-gradient(135deg, #ff2dbb, #cf49c9);
   border: none;
   color: #fff;
@@ -52,12 +51,30 @@
   transition: all 0.3s ease;
 }
 
-.main-button:hover,
-.join-button:hover {
+.main-button:hover {
   background: linear-gradient(135deg, #ff4fc5, #ff78d3);
   box-shadow: 0 0 20px rgba(255, 45, 187, 0.7);
 }
 
+.search-bar {
+  width: 80%;
+  padding: 0.8rem;
+  border-radius: 10px;
+  border: none;
+  margin-bottom: 1rem;
+  font-size: 1rem;
+  background: #2c2c2c;
+  color: #fff;
+}
+
+.room-list {
+  max-height: 300px;
+  overflow-y: auto;
+  width: 100%;
+  background: rgba(30, 30, 30, 0.6);
+  border-radius: 12px;
+  padding: 1rem;
+}
 
 ul {
   list-style: none;
@@ -127,4 +144,51 @@ ul {
   background: #3c3c3c;
   color: #fff;
   box-shadow: 0 0 10px rgba(72, 149, 239, 0.3);
+}
+
+/* === Scrollable Room List === */
+.search-bar {
+  width: 100%;
+  padding: 0.8rem 1rem;
+  margin-bottom: 1rem;
+  border-radius: 12px;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  font-size: 1rem;
+  outline: none;
+  transition: background 0.3s;
+}
+
+.search-bar:focus {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.room-list {
+  width: 100%;
+  max-height: 300px;
+  overflow-y: auto;
+  border-radius: 16px;
+  padding-right: 0.5rem;
+  scrollbar-width: thin;
+  scrollbar-color: #ff2dbb #1a1a1a;
+}
+
+.room-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.room-list::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #ff2dbb, #cf49c9);
+  border-radius: 10px;
+}
+
+.room-list::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.no-rooms {
+  color: #aaa;
+  font-style: italic;
+  margin-top: 1rem;
 }

@@ -12,6 +12,10 @@ export default function PartyRoomPage() {
   const [connection, setConnection] = useState(null);
   const [player, setPlayer] = useState(null);
 
+  // 💬 Chat
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState("");
+
   // === 1. Fetch room info ===
   useEffect(() => {
     fetch(`${API_URL}/${roomId}`)
@@ -36,9 +40,15 @@ export default function PartyRoomPage() {
 
     setConnection(conn);
 
+    const handleBeforeUnload = () => {
+      navigator.sendBeacon(`${API_URL}/${roomId}/leave`);
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
     return () => {
-      conn.invoke("LeaveRoom", roomId);
+      conn.invoke("LeaveRoom", roomId).catch(() => {});
       conn.stop();
+      window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, [roomId]);
 
@@ -54,7 +64,7 @@ export default function PartyRoomPage() {
       const ytPlayer = new window.YT.Player("player", {
         height: "360",
         width: "640",
-        videoId: "", // blank until loaded
+        videoId: "",
         playerVars: { autoplay: 0, controls: 1 },
         events: {
           onReady: () => setPlayer(ytPlayer),
@@ -65,69 +75,97 @@ export default function PartyRoomPage() {
 
   // === 4. Hook SignalR events ===
   useEffect(() => {
-    if (!connection || !player) return;
+    if (!connection) return;
 
+    // Video controls
     connection.on("LoadVideo", (videoId) => {
-      console.log("Load video:", videoId);
-      player.loadVideoById(videoId);
+      if (player) player.loadVideoById(videoId);
     });
 
-    connection.on("Play", () => {
-      console.log("Play event received");
-      player.playVideo();
+    connection.on("Play", () => player?.playVideo());
+    connection.on("Pause", () => player?.pauseVideo());
+
+    // Room updates
+    connection.on("PartyRoomUpdated", (updatedRoom) => {
+      if (updatedRoom.id === parseInt(roomId)) {
+        setRoom(updatedRoom);
+      }
     });
 
-    connection.on("Pause", () => {
-      console.log("Pause event received");
-      player.pauseVideo();
+    // 💬 Chat listener
+    connection.on("ReceiveMessage", (user, message) => {
+      setMessages((prev) => [...prev, { user, message }]);
     });
 
     return () => {
       connection.off("LoadVideo");
       connection.off("Play");
       connection.off("Pause");
+      connection.off("PartyRoomUpdated");
+      connection.off("ReceiveMessage");
     };
-  }, [connection, player]);
+  }, [connection, player, roomId]);
 
-  // === 5. Simple UI actions ===
+  // === 5. Handlers ===
   const handleLeaveRoom = () => {
     fetch(`${API_URL}/${roomId}/leave`, { method: "POST" })
       .then(() => navigate("/partyrooms"))
       .catch((err) => alert(err.message));
   };
 
-  const handleLoadClick = () => {
-    const videoId = prompt("Enter YouTube Video ID:");
-    if (videoId) connection.invoke("LoadVideo", roomId, videoId);
+  const handleSendMessage = () => {
+    if (newMessage.trim()) {
+      connection.invoke("SendMessage", roomId, "User", newMessage);
+      setNewMessage("");
+    }
   };
-
-  const handlePlayClick = () => connection.invoke("Play", roomId);
-  const handlePauseClick = () => connection.invoke("Pause", roomId);
 
   // === 6. Render UI ===
   if (!room) return <p>Loading room...</p>;
 
   return (
-      <div className="partyroom-page">
-    <div className="partyroom-header">
-      <h2>{room.name}</h2>
-      <div>
-        Members: {room.guestsCount} / {room.capacity}
-        <button onClick={handleLeaveRoom}>Leave Room</button>
+<div className="partyroom-page">
+      <div className="partyroom-main">
+        <div className="partyroom-header">
+          <h2>{room.name}</h2>
+          <div>
+            Members: {room.guestsCount} / {room.capacity}
+            <button onClick={handleLeaveRoom}>Leave Room</button>
+          </div>
+        </div>
+
+        <p className="partyroom-info">
+          {room.isPrivate ? "Private" : "Public"} room
+        </p>
+
+        <div id="player"></div>
+
+        <div className="partyroom-buttons">
+          <button onClick={() => {
+            const videoId = prompt("Enter YouTube Video ID:");
+            if (videoId) connection.invoke("LoadVideo", roomId, videoId);
+          }}>Load Video</button>
+          <button onClick={() => connection.invoke("Play", roomId)}>Play</button>
+          <button onClick={() => connection.invoke("Pause", roomId)}>Pause</button>
+        </div>
+      </div>
+
+      {/* === Chat panel === */}
+      <div className="chat-panel">
+        <div className="chat-messages">
+          {messages.map((m, i) => (
+            <div key={i}><strong>{m.user}:</strong> {m.message}</div>
+          ))}
+        </div>
+        <div className="chat-input">
+          <input
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            placeholder="Type a message..."
+          />
+          <button onClick={handleSendMessage}>Send</button>
+        </div>
       </div>
     </div>
-
-    <p className="partyroom-info">
-      {room.isPrivate ? "Private" : "Public"} room
-    </p>
-
-    <div id="player"></div>
-
-    <div className="partyroom-buttons">
-      <button onClick={handleLoadClick}> Load Video</button>
-      <button onClick={handlePlayClick}> Play</button>
-      <button onClick={handlePauseClick}> Pause</button>
-    </div>
-  </div>
   );
 }
