@@ -1,60 +1,83 @@
 .partyroom-page {
-  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 2rem;
+  padding: 3rem;
   min-height: 100vh;
-  text-align: center;
-  color: #f8f8f8;
-  background: linear-gradient(160deg, #1a1a1a 0%, #242424 100%);
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: radial-gradient(circle at right bottom, rgba(72, 149, 239, 0.2), rgba(217, 35, 159, 0.6) 60%, #121212 100%);
+  color: #fff;
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
 }
 
+/* === Header === */
 .partyroom-header {
+  width: 80%;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  background: rgba(25, 25, 25, 0.65);
+  padding: 1rem 2rem;
+  border-radius: 16px;
+  box-shadow: 0 0 20px rgba(255, 45, 187, 0.3);
 }
 
 .partyroom-header h2 {
-  font-size: 1.8rem;
+  font-size: 2rem;
+  color: #91ffc1;
 }
 
+.partyroom-header button {
+  background: linear-gradient(135deg, #ff2dbb, #cf49c9);
+  border: none;
+  color: white;
+  padding: 0.7rem 1.4rem;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.partyroom-header button:hover {
+  background: linear-gradient(135deg, #ff4fc5, #ff78d3);
+  box-shadow: 0 0 15px rgba(255, 45, 187, 0.7);
+}
+
+/* === Info === */
 .partyroom-info {
-  font-size: 1.1rem;
-  margin-bottom: 1.5rem;
+  background: rgba(20, 20, 20, 0.65);
+  padding: 1rem 2rem;
+  border-radius: 12px;
+  box-shadow: 0 0 15px rgba(72, 149, 239, 0.3);
   color: #ccc;
 }
 
+/* === Player === */
 #player {
   margin: 20px auto;
+  border-radius: 16px;
   box-shadow: 0 0 25px rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
   overflow: hidden;
 }
 
+/* === Buttons === */
 .partyroom-buttons {
-  margin-top: 25px;
+  display: flex;
+  gap: 1.5rem;
+  margin-top: 20px;
 }
 
 .partyroom-buttons button {
-  margin: 0 10px;
-  padding: 10px 18px;
+  background: linear-gradient(135deg, #ff2dbb, #cf49c9);
   border: none;
-  border-radius: 8px;
-  background-color: #0066ff;
-  color: white;
-  font-weight: 500;
+  color: #fff;
+  padding: 0.8rem 1.6rem;
+  border-radius: 12px;
   cursor: pointer;
-  transition: background 0.3s;
+  transition: all 0.3s ease;
 }
 
 .partyroom-buttons button:hover {
-  background-color: #0050cc;
-}
-
-.leave-room-button {
-  background-color: #ff4747;
-}
-
-.leave-room-button:hover {
-  background-color: #d93636;
+  background: linear-gradient(135deg, #ff4fc5, #ff78d3);
+  box-shadow: 0 0 20px rgba(255, 45, 187, 0.7);
 }

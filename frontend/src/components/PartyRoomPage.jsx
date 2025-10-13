@@ -113,9 +113,7 @@ export default function PartyRoomPage() {
       <h2>{room.name}</h2>
       <div>
         Members: {room.guestsCount} / {room.capacity}
-        <button className="leave-room-button" onClick={handleLeaveRoom}>
-          Leave Room
-        </button>
+        <button onClick={handleLeaveRoom}>Leave Room</button>
       </div>
     </div>
 
@@ -126,9 +124,9 @@ export default function PartyRoomPage() {
     <div id="player"></div>
 
     <div className="partyroom-buttons">
-      <button onClick={handleLoadClick}>Load Video</button>
-      <button onClick={handlePlayClick}>Play</button>
-      <button onClick={handlePauseClick}>Pause</button>
+      <button onClick={handleLoadClick}> Load Video</button>
+      <button onClick={handlePlayClick}> Play</button>
+      <button onClick={handlePauseClick}> Pause</button>
     </div>
   </div>
   );

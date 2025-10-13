@@ -17,23 +17,32 @@ function PartyRoomList() {
 
   const handleJoinRoom = (roomId) => {
     fetch(`${API_URL}/${roomId}/join`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" }
-  })
-    .then((response) => {
-      if (!response.ok) {
-        return response.json().then((error) => {
-          throw new Error(error.error || "Failed to join room");
-        });
-      }
-      return response.json();
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
     })
-    .then(() => {
-      navigate(`/room/${roomId}`);
+      .then((response) => {
+        if (!response.ok) throw new Error("Failed to join room");
+        return response.json();
+      })
+      .then(() => navigate(`/room/${roomId}`))
+      .catch((error) => alert(error.message));
+  };
+
+  const handleCreateRoom = () => {
+    const name = prompt("Enter room name:");
+    if (!name) return;
+
+    fetch(`${API_URL}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, capacity: 10, isPrivate: false }),
     })
-    .catch((error) => {
-      alert(error.message);
-    });
+      .then((response) => {
+        if (!response.ok) throw new Error("Failed to create room");
+        return response.json();
+      })
+      .then((newRoom) => navigate(`/room/${newRoom.id}`))
+      .catch((err) => alert(err.message));
   };
 
   return (
@@ -41,8 +50,8 @@ function PartyRoomList() {
     <div className="partyrooms-section">
       <h2>Party Rooms</h2>
       <div className="buttons">
-        <button className="main-button">Create Room</button>
-        <button className="join-button">Join a Room</button>
+        <button className="main-button" onClick={handleCreateRoom}>Create Room</button>
+        <button className="join-button" onClick={() => alert("Select a room below to join")}>Join a Room</button>
       </div>
 
       <ul>
