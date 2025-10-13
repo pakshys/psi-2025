@@ -1,5 +1,6 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { useState, useEffect } from "react";
+import "./PartyRoomPage.css";
 import * as signalR from "@microsoft/signalr";
 
 const API_URL = "https://localhost:7234/partyroom";
@@ -22,7 +23,7 @@ export default function PartyRoomPage() {
   // === 2. Setup SignalR connection ===
   useEffect(() => {
     const conn = new signalR.HubConnectionBuilder()
-      .withUrl("https://localhost:7234/partyroomhub")
+      .withUrl("https://localhost:7234/hubs/partyroom")
       .withAutomaticReconnect()
       .build();
 
@@ -107,25 +108,28 @@ export default function PartyRoomPage() {
   if (!room) return <p>Loading room...</p>;
 
   return (
-    <div style={{ padding: "2rem", minHeight: "100vh", textAlign: "center" }}>
-      <div style={{ position: "absolute", top: "1rem", right: "1rem" }}>
+      <div className="partyroom-page">
+    <div className="partyroom-header">
+      <h2>{room.name}</h2>
+      <div>
         Members: {room.guestsCount} / {room.capacity}
-        <button onClick={handleLeaveRoom} style={{ marginLeft: "1rem" }}>
+        <button className="leave-room-button" onClick={handleLeaveRoom}>
           Leave Room
         </button>
       </div>
-
-      <h2>{room.name}</h2>
-      <p>{room.isPrivate ? "Private" : "Public"} room</p>
-
-      {/* === YouTube Player === */}
-      <div id="player" style={{ margin: "20px auto" }}></div>
-
-      <div style={{ marginTop: "20px" }}>
-        <button onClick={handleLoadClick}>Load Video</button>
-        <button onClick={handlePlayClick}>Play</button>
-        <button onClick={handlePauseClick}>Pause</button>
-      </div>
     </div>
+
+    <p className="partyroom-info">
+      {room.isPrivate ? "Private" : "Public"} room
+    </p>
+
+    <div id="player"></div>
+
+    <div className="partyroom-buttons">
+      <button onClick={handleLoadClick}>Load Video</button>
+      <button onClick={handlePlayClick}>Play</button>
+      <button onClick={handlePauseClick}>Pause</button>
+    </div>
+  </div>
   );
 }

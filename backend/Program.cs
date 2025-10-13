@@ -17,7 +17,8 @@ builder.Services.AddCors(options =>
         policy => policy
             .WithOrigins("http://localhost:5173") // React server origin
             .AllowAnyHeader()
-            .AllowAnyMethod());
+            .AllowAnyMethod()
+            .AllowCredentials()); // for SignalR !
 });
 
 builder.Services.AddControllers();
@@ -75,6 +76,7 @@ app.UseCors("AllowFrontend");
 app.MapControllers();
 
 // Map SignalR PartyRoomHub
+app.UseCors("AllowFrontend");
 app.MapHub<PartyRoomHub>("/hubs/partyroom");
 
 app.Run();
