@@ -51,7 +51,7 @@ function PartyRoomList() {
       <h2>Party Rooms</h2>
       <div className="buttons">
         <button className="main-button" onClick={handleCreateRoom}>Create Room</button>
-        <button className="join-button" onClick={() => alert("Select a room below to join")}>Join a Room</button>
+        <button className="join-button" onClick={handleJoinRoom}>Join a Room</button>
       </div>
 
       <ul>
