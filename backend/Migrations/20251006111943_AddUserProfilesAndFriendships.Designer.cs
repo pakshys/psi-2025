@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using backend.Database;
@@ -11,9 +12,11 @@ using backend.Database;
 namespace backend.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251006111943_AddUserProfilesAndFriendships")]
+    partial class AddUserProfilesAndFriendships
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -211,31 +214,6 @@ namespace backend.Migrations
                     b.ToTable("PartyRooms", "app");
                 });
 
-            modelBuilder.Entity("backend.Models.Track", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("PartyRoomId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("Position")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("TrackId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PartyRoomId");
-
-                    b.ToTable("Tracks", "app");
-                });
-
             modelBuilder.Entity("backend.Models.User", b =>
                 {
                     b.Property<string>("Id")
@@ -385,21 +363,6 @@ namespace backend.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("backend.Models.Track", b =>
-                {
-                    b.HasOne("backend.Models.PartyRoom", "PartyRoom")
-                        .WithMany("Tracks")
-                        .HasForeignKey("PartyRoomId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("PartyRoom");
-                });
-
-            modelBuilder.Entity("backend.Models.PartyRoom", b =>
-                {
-                    b.Navigation("Tracks");
-                });
             modelBuilder.Entity("backend.Models.Friendship", b =>
                 {
                     b.HasOne("backend.Models.User", "Addressee")

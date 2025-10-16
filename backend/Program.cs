@@ -47,6 +47,12 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 // Register PartyRoomService for dependency injection
 builder.Services.AddScoped<PartyRoomService>();
 
+// Register UserProfileService
+builder.Services.AddScoped<UserProfileService>();
+
+// Register FriendshipService
+builder.Services.AddScoped<FriendshipService>();
+
 // Register SignalR for real-time functionalities
 builder.Services.AddSignalR();
 

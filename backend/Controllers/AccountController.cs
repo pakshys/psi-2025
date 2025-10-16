@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using backend.Services;
 using backend.Models;
 using backend.Database;
 using System.Threading.Tasks;
@@ -9,42 +10,52 @@ namespace backend.Controllers
 	[ApiController]
 	[Route("[controller]")]
 	public class AccountController : ControllerBase
-	{
-		private readonly SignInManager<User> _signInManager;
-		private readonly UserManager<User> _userManager;
+    {
+        private readonly SignInManager<User> _signInManager;
+        private readonly UserManager<User> _userManager;
+        private readonly UserProfileService _profileService;
 
-		public AccountController(SignInManager<User> signInManager, UserManager<User> userManager)
-		{
-			_signInManager = signInManager;
-			_userManager = userManager;
-		}
+        public AccountController(
+            SignInManager<User> signInManager,
+            UserManager<User> userManager,
+            UserProfileService profileService)
+        {
+            _signInManager = signInManager;
+            _userManager = userManager;
+            _profileService = profileService;
+        }
 
 
-		[HttpPost("Register")]
-		public async Task<IActionResult> Register([FromBody] RegisterViewModel model)
-		{
-			if (!ModelState.IsValid)
-				return BadRequest(ModelState);
+        [HttpPost("Register")]
+        public async Task<IActionResult> Register([FromBody] RegisterViewModel model)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
 
-			var user = new User
-			{
-				UserName = model.UserName,
-				Email = model.Email
-			};
+            var user = new User
+            {
+                UserName = model.UserName,
+                Email = model.Email
+            };
 
-			var result = await _userManager.CreateAsync(user, model.Password);
+            var result = await _userManager.CreateAsync(user, model.Password);
 
-			if (result.Succeeded)
-				return Ok(new { Message = "Registration successful" });
+            if (result.Succeeded)
+            {
+                // Create an empty user profile right after successful registration
+                await _profileService.CreateOrUpdateAsync(user.Id, model.UserName, null, null);
 
-			return BadRequest(new
-			{
-				Message = "Registration failed",
-				Errors = result.Errors
-			});
-		}
+                return Ok(new { Message = "Registration successful and profile created." });
+            }
 
-		[HttpPost("Login")]
+            return BadRequest(new
+            {
+                Message = "Registration failed",
+                Errors = result.Errors
+            });
+        }
+
+        [HttpPost("Login")]
 		public async Task<IActionResult> Login([FromBody] LoginViewModel model)
 		{
 			if (!ModelState.IsValid)
