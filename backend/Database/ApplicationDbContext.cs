@@ -13,8 +13,8 @@ public class ApplicationDbContext : IdentityDbContext<User>
     {
     }
 
-    // DbSet for PartyRoom entity
     public DbSet<PartyRoom> PartyRooms => Set<PartyRoom>();
+    public DbSet<Track> Tracks => Set<Track>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -31,5 +31,12 @@ public class ApplicationDbContext : IdentityDbContext<User>
         builder.Entity<IdentityUserLogin<string>>().ToTable("UserLogins", "identity");
         builder.Entity<IdentityRoleClaim<string>>().ToTable("RoleClaims", "identity");
         builder.Entity<IdentityUserToken<string>>().ToTable("UserTokens", "identity");
+
+        // One-to-many relationship between PartyRoom and Track
+        builder.Entity<PartyRoom>()
+            .HasMany(r => r.Tracks)
+            .WithOne(p => p.PartyRoom!)
+            .HasForeignKey(p => p.PartyRoomId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }
