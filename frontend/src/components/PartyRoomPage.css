@@ -1,9 +1,8 @@
 /* === Base Layout === */
 .partyroom-page {
   display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  gap: 2rem;
+  flex-direction: column;
+  align-items: center;
   padding: 3rem;
   min-height: 100vh;
   background: radial-gradient(
@@ -14,20 +13,23 @@
   );
   color: #fff;
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  gap: 2rem;
 }
 
 /* === Main Content === */
 .partyroom-main {
-  flex: 2;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1.5rem;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 2rem;
+  width: 100%;
+  max-width: 1200px;
 }
 
 /* === Header === */
 .partyroom-header {
   width: 100%;
+  max-width: 1200px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -74,6 +76,14 @@
   overflow: hidden;
 }
 
+.partyroom-content {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
 /* === Video Controls === */
 .partyroom-buttons {
   display: flex;
@@ -101,10 +111,11 @@
   flex: 1;
   background: rgba(25, 25, 25, 0.65);
   border-radius: 16px;
-  padding: 1.5rem;
+  padding: 1.2rem;
   display: flex;
   flex-direction: column;
-  height: 80vh;
+  height: 60vh; /* Shorter */
+  max-height: 600px;
   box-shadow: 0 0 25px rgba(72, 149, 239, 0.3);
 }
 

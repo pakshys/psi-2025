@@ -22,7 +22,7 @@ function HomePage() {
 
       <div className="support">
         <span>Support us:</span>
-        <a href="https://github.com/pakshys/psi-2025" target="_blank" rel="noreferrer">
+        <a href="https://www.war.gov/" target="_blank" rel="noreferrer">
           <img src={githubMark} alt="GitHub" width={30} height={30} />
         </a>
       </div>

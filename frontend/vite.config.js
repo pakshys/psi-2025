@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      "/WeatherForecast": {
+      "/CoTunes": {
         target: "https://localhost:7234",
         changeOrigin: true,
         secure: false
