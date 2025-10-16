@@ -1,5 +1,6 @@
 using backend.Database;
 using backend.Models;
+using Dtos;
 using Microsoft.EntityFrameworkCore;
 
 namespace backend.Services;
@@ -68,11 +69,14 @@ public class TrackQueueService
             .FirstOrDefaultAsync();
     }
 
-    public async Task<List<Track>> GetTrackQueueAsync(int roomId)
+    public async Task<List<TrackDto>> GetTrackQueueAsync(int roomId)
     {
-        return await _dbContext.Tracks
+        var tracks = await _dbContext.Tracks
             .Where(p => p.PartyRoomId == roomId)
             .OrderBy(p => p.Position)
             .ToListAsync();
+
+        return tracks.Select(t =>
+            new TrackDto(TrackId: t.TrackId, Position: t.Position)).ToList();
     }
 }
