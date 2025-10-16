@@ -40,11 +40,13 @@ public class PartyRoomController : ControllerBase
 
     // POST create action
     [HttpPost]
-    public async Task<IActionResult> Create(PartyRoom partyRoom)
+    public async Task<IActionResult> Create([FromQuery] string name,
+                                            [FromQuery] int capacity = 10,
+                                            [FromQuery] bool isPrivate = false)
     {
         try
         {
-            var createdRoom = await _service.CreateAsync(partyRoom);
+            var createdRoom = await _service.CreateAsync(name, capacity, isPrivate);
 
             // Notify all clients about the created party room
             await _hubContext.Clients.All.SendAsync("PartyRoomCreated", createdRoom);
