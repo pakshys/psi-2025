@@ -7,4 +7,6 @@ public class PartyRoom
     public int Capacity { get; set; }
     public bool IsPrivate { get; set; }
     public int GuestsCount { get; set; } = 0;
+    public List<Track> Tracks { get; set; } = new();
+
 }
