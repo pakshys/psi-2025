@@ -19,6 +19,9 @@ function HomePage() {
         <button className="get-started-btn" onClick={() => navigate("/partyrooms")}>
           Get Started
         </button>
+        <button className="get-started-btn" onClick={() => navigate("/friends")}>
+          Go to Friends
+        </button>
       </div>
 
       <div className="support">
