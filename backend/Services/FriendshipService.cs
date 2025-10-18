@@ -80,5 +80,39 @@ namespace backend.Services
             _context.Friendships.Remove(friendship);
             await _context.SaveChangesAsync();
         }
+
+        public async Task<List<FriendSummary>> GetSummariesAsync(string userId)
+        {
+            return await _context.Friendships
+                .Include(f => f.Requester).Include(f => f.Addressee)
+                .Where(f => f.RequesterId == userId || f.AddresseeId == userId)
+                .OrderByDescending(f => f.CreatedAt)
+                .Select(f => new FriendSummary(
+                    f.Id,
+                    f.RequesterId == userId ? f.AddresseeId : f.RequesterId,
+                    f.RequesterId == userId
+                        ? (f.Addressee.UserName ?? f.AddresseeId)
+                        : (f.Requester.UserName ?? f.RequesterId),
+                    f.Status,
+                    f.CreatedAt
+                ))
+                .ToListAsync();
+        }
+
+        public async Task<List<FriendSummary>> GetPendingSummariesAsync(string userId)
+        {
+            return await _context.Friendships
+                .Include(f => f.Requester)
+                .Where(f => f.AddresseeId == userId && f.Status == FriendshipStatus.Pending)
+                .OrderByDescending(f => f.CreatedAt)
+                .Select(f => new FriendSummary(
+                    f.Id,
+                    f.RequesterId,
+                    f.Requester.UserName ?? f.RequesterId,
+                    f.Status,
+                    f.CreatedAt
+                ))
+                .ToListAsync();
+        }
     }
 }

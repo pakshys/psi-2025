@@ -3,6 +3,7 @@ import './App.css'
 import Login from "./components/Login";
 import PartyRoomList from "./components/PartyRoomList";
 import PartyRoomPage from "./components/PartyRoomPage";
+import Friends from "./components/Friends";
 import githubMark from "./assets/github-mark.svg";
 
 function HomePage() {
@@ -36,7 +37,8 @@ function App() {
       <Route path = "/" element = {<HomePage/>} />
       <Route path="/login" element={<Login />} />
       <Route path = "/partyrooms" element = {<PartyRoomList/>} />
-      <Route path = "/room/:id" element = {<PartyRoomPage/>} />
+      <Route path="/room/:id" element={<PartyRoomPage />} />
+      <Route path="/friends" element={<Friends />} />
     </Routes>
   );
 }
