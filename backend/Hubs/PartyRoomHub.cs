@@ -1,3 +1,5 @@
+using backend.Models;
+using backend.Services;
 using Microsoft.AspNetCore.SignalR;
 
 namespace backend.Hubs
@@ -5,39 +7,44 @@ namespace backend.Hubs
     public class PartyRoomHub : Hub
     {
         
-        private record RoomPlaybackState(string VideoId, double CurrentTime, bool IsPlaying, DateTime LastUpdatedUtc);
+        private readonly TrackQueueService _trackQueueService;
 
-        // Store current playback state for syncing new members
+        public PartyRoomHub(TrackQueueService trackQueueService)
+        {
+            _trackQueueService = trackQueueService;
+        }
+
+        // === Playback state tracking ===
+        private record RoomPlaybackState(string VideoId, double CurrentTime, bool IsPlaying, DateTime LastUpdatedUtc);
         private static readonly Dictionary<string, RoomPlaybackState> _currentRoomStates = new();
 
-        // Chat System
+        // === Chat ===
         public async Task SendMessage(string roomId, string user, string message)
         {
             await Clients.Group(roomId).SendAsync("ReceiveMessage", user, message);
         }
 
-        // Join party room group
-        public async Task JoinRoom(string roomId)
+        // === Join ===
+        public async Task JoinRoom(int roomId)
         {
-            await Groups.AddToGroupAsync(Context.ConnectionId, roomId);
+            string roomKey = roomId.ToString();
+            await Groups.AddToGroupAsync(Context.ConnectionId, roomKey);
 
-            // Notify everyone in the room that a new user joined
-            await Clients.Group(roomId).SendAsync("UserJoined", roomId);
+            // Send the current queue to the user
+            var queue = await _trackQueueService.GetTrackQueueAsync(roomId);
+            await Clients.Caller.SendAsync("QueueUpdated", roomId, queue);
+            await Clients.Group(roomKey).SendAsync("UserJoined", roomId);
 
-            // If there's an active video, sync it for the joining user
-            if (_currentRoomStates.TryGetValue(roomId, out var state))
+            // Sync YouTube state
+            if (_currentRoomStates.TryGetValue(roomKey, out var state))
             {
-                // Compute elapsed time if playing
                 double effectiveTime = state.CurrentTime;
                 if (state.IsPlaying)
                 {
                     var elapsed = (DateTime.UtcNow - state.LastUpdatedUtc).TotalSeconds;
-                    effectiveTime = state.CurrentTime + elapsed;
-                    // optional: clamp to a minimum of 0
-                    if (effectiveTime < 0) effectiveTime = 0;
+                    effectiveTime = Math.Max(0, state.CurrentTime + elapsed);
                 }
 
-                // Send video id, seek to computed time, then set play/pause
                 await Clients.Caller.SendAsync("LoadVideo", state.VideoId);
                 await Clients.Caller.SendAsync("SeekTo", effectiveTime);
 
@@ -49,10 +56,35 @@ namespace backend.Hubs
         }
 
         // Leave party room group
-        public async Task LeaveRoom(string roomId)
+        public async Task LeaveRoom(int roomId)
         {
-            await Groups.RemoveFromGroupAsync(Context.ConnectionId, roomId);
-            await Clients.Group(roomId).SendAsync("UserLeft", roomId, Context.ConnectionId);
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, roomId.ToString());
+            await Clients.Group(roomId.ToString()).SendAsync("UserLeft", roomId, Context.ConnectionId);
+        }
+
+        // Enqueue a track
+        public async Task EnqueueTrack(int roomId, string trackId)
+        {
+            await _trackQueueService.EnqueueAsync(roomId, trackId);
+            var queue = await _trackQueueService.GetTrackQueueAsync(roomId);
+
+            await Clients.Group(roomId.ToString()).SendAsync("QueueUpdated", roomId, queue);
+        }
+
+        // Dequeue a track
+        public async Task<Track?> DequeueTrack(int roomId)
+        {
+            var dequeued = await _trackQueueService.DequeueAsync(roomId);
+            var queue = await _trackQueueService.GetTrackQueueAsync(roomId);
+
+            await Clients.Group(roomId.ToString()).SendAsync("QueueUpdated", roomId, queue);
+            return dequeued;
+        }
+
+        // Peek at the next track
+        public async Task<Track?> PeekNextTrack(int roomId)
+        {
+            return await _trackQueueService.PeekAsync(roomId);
         }
 
         // UI commands

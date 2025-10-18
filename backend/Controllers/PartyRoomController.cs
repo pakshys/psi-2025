@@ -39,12 +39,14 @@ public class PartyRoomController : ControllerBase
     }
 
     // POST create action
-[HttpPost]
-public async Task<IActionResult> Create(PartyRoom partyRoom)
-{
-    try
+    [HttpPost]
+    public async Task<IActionResult> Create([FromQuery] string name,
+                                            [FromQuery] int capacity = 10,
+                                            [FromQuery] bool isPrivate = false)
     {
-        var createdRoom = await _partyRoomService.CreateAsync(partyRoom);
+        try
+        {
+            var createdRoom = await _partyRoomService.CreateAsync(name, capacity, isPrivate);
 
         // Count the creator as the first member
         createdRoom.GuestsCount = 1;

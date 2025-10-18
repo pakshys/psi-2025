@@ -26,13 +26,20 @@ public class PartyRoomService
     }
 
     // Create a new room
-    public async Task<PartyRoom> CreateAsync(PartyRoom partyRoom)
+    public async Task<PartyRoom> CreateAsync(string name, int capacity = 10, bool isPrivate = false)
     {
-        if (string.IsNullOrWhiteSpace(partyRoom.Name))
+        if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Party room name cannot be empty.");
 
-        if (partyRoom.Capacity <= 0)
+        if (capacity <= 0)
             throw new ArgumentException("Party room capacity must be greater than zero.");
+
+        var partyRoom = new PartyRoom
+        {
+            Name = name,
+            Capacity = capacity,
+            IsPrivate = isPrivate
+        };
 
         _context.PartyRooms.Add(partyRoom);
         await _context.SaveChangesAsync();
