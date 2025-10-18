@@ -37,10 +37,8 @@ function PartyRoomList() {
     const name = prompt("Enter room name:");
     if (!name) return;
 
-    fetch(API_URL, {
+    fetch(`${API_URL}?name=${encodeURIComponent(name)}&capacity=10&isPrivate=false`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, capacity: 10, isPrivate: false }),
     })
       .then((r) => {
         if (!r.ok) throw new Error("Failed to create room");
@@ -49,6 +47,7 @@ function PartyRoomList() {
       .then((newRoom) => navigate(`/room/${newRoom.id}`))
       .catch((err) => alert(err.message));
   };
+
 
   // === Search Filter ===
   const filteredRooms = rooms.filter((r) =>

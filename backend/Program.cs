@@ -53,6 +53,9 @@ builder.Services.AddScoped<UserProfileService>();
 // Register FriendshipService
 builder.Services.AddScoped<FriendshipService>();
 
+// RegisterTrackQueueService
+builder.Services.AddScoped<TrackQueueService>();
+
 // Register SignalR for real-time functionalities
 builder.Services.AddSignalR();
 
