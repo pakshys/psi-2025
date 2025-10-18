@@ -191,3 +191,32 @@
   padding-right: 0.5rem;
   color: #ddd;
 }
+
+
+/* === Player Overlay (prevents click interaction) === */
+#player-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.player-overlay { 
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  cursor: not-allowed;
+  background: rgba(0, 0, 0, 0); /* transparent click blocker */
+}
+
+/* === Volume Slider === */
+.volume-control {
+  margin-top: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #ccc;
+}
+
+.volume-control input {
+  accent-color: #ff2dbb;
+  cursor: pointer;
+}

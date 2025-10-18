@@ -206,7 +206,10 @@ export default function PartyRoomPage() {
           {room.isPrivate ? "Private" : "Public"} room
         </p>
 
-        <div id="player"></div>
+        <div id="player-wrapper">
+          <div id="player"></div>
+          <div className="player-overlay"></div>
+        </div>
 
         <div className="partyroom-buttons">
           <button
@@ -235,36 +238,19 @@ export default function PartyRoomPage() {
         </button>
 
         <button
-          onClick={async () => {
-            if (!connection || connection.state !== "Connected") {
-              alert("Not connected to server yet.");
-              return;
-            }
-            try {
-              // Play expects string roomId in your current hub — send string
-              await connection.invoke("Play", roomId.toString());
-            } catch (err) {
-              console.error("Play invoke failed:", err);
-            }
-          }}
+          onClick={() =>
+            connection.invoke("RequestVote", roomId.toString(), "Play")
+          }
         >
-          Play
+          Vote Play
         </button>
 
         <button
-          onClick={async () => {
-            if (!connection || connection.state !== "Connected") {
-              alert("Not connected to server yet.");
-              return;
-            }
-            try {
-              await connection.invoke("Pause", roomId.toString());
-            } catch (err) {
-              console.error("Pause invoke failed:", err);
-            }
-          }}
+          onClick={() =>
+            connection.invoke("RequestVote", roomId.toString(), "Pause")
+          }
         >
-          Pause
+          Vote Pause
         </button>
         </div>
       </div>
@@ -274,10 +260,50 @@ export default function PartyRoomPage() {
         <div className="chat-messages">
           {messages.map((m, i) => (
             <div key={i}>
-              <strong>{m.user}:</strong> {m.message}
+              {m.system ? (
+                <>
+                  <strong>System:</strong> {m.message}
+                  {m.action && (
+                    <span>
+                      {" "}
+                      <button
+                        onClick={() =>
+                          connection.invoke(
+                            "CastVote",
+                            roomId.toString(),
+                            connection.connectionId, // using connectionId as user
+                            m.action,
+                            true
+                          )
+                        }
+                      >
+                        👍
+                      </button>
+                      <button
+                        onClick={() =>
+                          connection.invoke(
+                            "CastVote",
+                            roomId.toString(),
+                            connection.connectionId,
+                            m.action,
+                            false
+                          )
+                        }
+                      >
+                        👎
+                      </button>
+                    </span>
+                  )}
+                </>
+              ) : (
+                <>
+                  <strong>{m.user}:</strong> {m.message}
+                </>
+              )}
             </div>
           ))}
         </div>
+
 
         <div className="chat-input">
           <input
@@ -292,6 +318,20 @@ export default function PartyRoomPage() {
             placeholder="Type a message..."
           />
           <button onClick={handleSendMessage}>Send</button>
+        </div>
+
+        {/* === Volume Slider === */}
+        <div className="volume-control">
+          <label>Volume:</label>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            defaultValue="50"
+            onChange={(e) => {
+              if (player && playerReady) player.setVolume(parseInt(e.target.value));
+            }}
+          />
         </div>
       </div>
     </div>

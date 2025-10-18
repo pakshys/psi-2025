@@ -17,6 +17,7 @@ namespace backend.Hubs
         // === Playback state tracking ===
         private record RoomPlaybackState(string VideoId, double CurrentTime, bool IsPlaying, DateTime LastUpdatedUtc);
         private static readonly Dictionary<string, RoomPlaybackState> _currentRoomStates = new();
+        private static readonly Dictionary<string, Dictionary<string, string>> _votes = new();
 
         // === Chat ===
         public async Task SendMessage(string roomId, string user, string message)
@@ -86,6 +87,41 @@ namespace backend.Hubs
         {
             return await _trackQueueService.PeekAsync(roomId);
         }
+
+        // VOTING
+        public async Task RequestVote(string roomId, string action)
+        {
+            if (!_votes.ContainsKey(roomId))
+                _votes[roomId] = new Dictionary<string, string>();
+
+            _votes[roomId].Clear(); // reset previous votes
+            await Clients.Group(roomId).SendAsync("VoteRequested", action);
+        }
+
+        public async Task CastVote(string roomId, string userId, string action, bool agree)
+        {
+            if (!_votes.ContainsKey(roomId)) return;
+
+            _votes[roomId][userId] = agree ? "yes" : "no";
+
+            var totalVotes = _votes[roomId].Count;
+            var yesVotes = _votes[roomId].Values.Count(v => v == "yes");
+
+            // Assume you track usersCount in DB or memory (fallback to 2 for demo)
+            double participation = yesVotes / (double)Math.Max(1, totalVotes);
+
+            if (participation >= 0.5)
+            {
+                if (action == "Play") await Play(roomId);
+                if (action == "Pause") await Pause(roomId);
+                await Clients.Group(roomId).SendAsync("VoteResult", action, true);
+            }
+            else
+            {
+                await Clients.Group(roomId).SendAsync("VoteResult", action, false);
+            }
+        }
+
 
         // UI commands
         public async Task LoadVideo(string roomId, string videoId)
