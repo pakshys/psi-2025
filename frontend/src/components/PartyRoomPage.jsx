@@ -13,6 +13,21 @@ export default function PartyRoomPage() {
   const [player, setPlayer] = useState(null);
   const [playerReady, setPlayerReady] = useState(false);
   const [pendingVideo, setPendingVideo] = useState(null);
+  const [bufferedEvents, setBufferedEvents] = useState([]);
+
+  useEffect(() => {
+    if (playerReady && player && bufferedEvents.length > 0) {
+      bufferedEvents.forEach((event) => {
+        switch (event.type) {
+          case "load": player.loadVideoById(event.videoId); break;
+          case "seek": player.seekTo(event.time, true); break;
+          case "play": player.playVideo(); break;
+          case "pause": player.pauseVideo(); break;
+        }
+      });
+      setBufferedEvents([]);
+    }
+  }, [playerReady, player]);
 
   // Chat
   const [messages, setMessages] = useState([]);
@@ -33,37 +48,47 @@ export default function PartyRoomPage() {
       .withAutomaticReconnect([0, 2000, 5000, 10000])
       .build();
 
-    // start and only set connection after successful start
-    conn.start()
+    let isReload = false;
+
+    const handleUnload = () => {
+      // Detect reload (don’t send leave beacon for reloads)
+      const nav = performance.getEntriesByType("navigation")[0];
+      if (nav && nav.type === "reload") {
+        isReload = true;
+        return;
+      }
+
+      navigator.sendBeacon(`${API_URL}/${roomId}/leave`);
+    };
+
+    window.addEventListener("beforeunload", handleUnload);
+
+    conn
+      .start()
       .then(() => {
         console.log("✅ Connected to SignalR hub");
-        // server expects an int for JoinRoom in your hub — pass a number
-        conn.invoke("JoinRoom", parseInt(roomId)).catch(() => {});
-        // then expose to handlers
-        setConnection(conn);
+        return conn.invoke("JoinRoom", parseInt(roomId));
       })
+      .then(() => setConnection(conn))
       .catch((err) => {
         console.error("SignalR connection failed:", err);
       });
 
     conn.onreconnected(() => {
-      console.log("Reconnected to SignalR hub, rejoining room...");
+      console.log("🔄 Reconnected — rejoining room...");
       conn.invoke("JoinRoom", parseInt(roomId)).catch(() => {});
     });
 
-    const handleBeforeUnload = () => {
-      // sendBeacon to leave endpoint so server count updates if user closes tab
-      navigator.sendBeacon(`${API_URL}/${roomId}/leave`);
-    };
-    window.addEventListener("beforeunload", handleBeforeUnload);
-
+    // === Cleanup ===
     return () => {
-      // Ask hub to remove from group; safe-guard with try/catch
-      conn.invoke("LeaveRoom", parseInt(roomId)).catch(() => {});
+      window.removeEventListener("beforeunload", handleUnload);
+      if (!isReload) {
+        conn.invoke("LeaveRoom", parseInt(roomId)).catch(() => {});
+      }
       conn.stop().catch(() => {});
-      window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, [roomId]);
+
 
 
   // === 3. Load YouTube iframe API ===
@@ -101,61 +126,104 @@ export default function PartyRoomPage() {
       if (playerReady && player) callback();
     };
 
-    // Video controls
     connection.on("LoadVideo", (videoId) => {
-    console.log("Loading video ID:", videoId);
-    if (!playerReady || !player) {
-      setPendingVideo({ videoId, seek: null });
-    } else {
-      player.loadVideoById(videoId);
-    }
-  });
+      console.log("Loading video ID:", videoId);
+      if (!videoId || !/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
+        console.warn("Invalid video ID received:", videoId);
+        return;
+      }
+      setPendingVideo({ videoId, seek: 0 }); // keep consistent
+      if (!playerReady || !player) {
+        setBufferedEvents((prev) => [...prev, { type: "load", videoId }]);
+      } else {
+        player.loadVideoById(videoId);
+      }
+    });
 
-  connection.on("SeekTo", (time) => {
-    if (!playerReady || !player) {
-      setPendingVideo((prev) => prev ? { ...prev, seek: time } : { videoId: null, seek: time });
-    } else {
-      player.seekTo(time, true);
-    }
-  });
+    connection.on("SeekTo", (time) => {
+      if (!playerReady || !player) {
+        setBufferedEvents((prev) => [...prev, { type: "seek", time }]);
+      } else {
+        player.seekTo(time, true);
+      }
+    });
 
+    connection.on("Play", () => {
+      if (!playerReady || !player) {
+        setBufferedEvents((prev) => [...prev, { type: "play" }]);
+      } else {
+        player.playVideo();
+      }
+    });
 
-    connection.on("Play", () => safePlayerCall(() => player.playVideo()));
-    connection.on("Pause", () => safePlayerCall(() => player.pauseVideo()));
+    connection.on("Pause", () => {
+      if (!playerReady || !player) {
+        setBufferedEvents((prev) => [...prev, { type: "pause" }]);
+      } else {
+        player.pauseVideo();
+      }
+    });
 
-    // === Periodically send current video time to backend ===
+    // Room + chat + vote handlers (keep your code here)
+    connection.on("PartyRoomUpdated", (updatedRoom) => {
+      if (updatedRoom.id === parseInt(roomId)) setRoom(updatedRoom);
+    });
+
+    connection.on("ReceiveMessage", (user, message) => {
+      setMessages((prev) => [...prev, { user, message }]);
+    });
+
+    connection.on("VoteRequested", (action) => {
+      setMessages((prev) => [
+        ...prev,
+        { system: true, message: `Vote started: ${action}?`, action },
+      ]);
+    });
+
+    connection.on("VoteResult", (action, passed) => {
+      setMessages((prev) => [
+        ...prev,
+        {
+          system: true,
+          message: `Vote result for ${action}: ${passed ? "✅ Passed" : "❌ Failed"}`,
+        },
+      ]);
+    });
+
+    connection.on("QueueUpdated", (roomId, queue) => {
+      console.log("Queue updated:", queue);
+      setRoom((prev) => ({ ...prev, queue }));
+    });
+
+    // Periodic sync
     const syncInterval = setInterval(() => {
       if (connection && player && player.getCurrentTime && player.getPlayerState() === 1) {
         const currentTime = player.getCurrentTime();
         connection.invoke("UpdateTime", roomId, currentTime).catch(() => {});
       }
-    }, 3000); // every 3 seconds
-
-    // Room updates
-    connection.on("PartyRoomUpdated", (updatedRoom) => {
-      if (updatedRoom.id === parseInt(roomId)) {
-        setRoom(updatedRoom);
-      }
-    });
-
-    // Chat listener
-    connection.on("ReceiveMessage", (user, message) => {
-      setMessages((prev) => [...prev, { user, message }]);
+    }, 3000);
+    
+    connection.on("MemberCountUpdated", (count) => {
+      setRoom((prev) => ({ ...prev, guestsCount: count }));
     });
 
     return () => {
       clearInterval(syncInterval);
       connection.off("LoadVideo");
-      connection.off("SeekTo"); // new
+      connection.off("SeekTo");
       connection.off("Play");
       connection.off("Pause");
       connection.off("PartyRoomUpdated");
       connection.off("ReceiveMessage");
+      connection.off("VoteRequested");
+      connection.off("VoteResult");
+      connection.off("QueueUpdated");
     };
   }, [connection, player, playerReady, roomId]);
 
+
   useEffect(() => {
-    if (playerReady && player && pendingVideo) {
+      if (playerReady && player && pendingVideo) {
       if (pendingVideo.videoId) player.loadVideoById(pendingVideo.videoId);
       if (pendingVideo.seek != null) player.seekTo(pendingVideo.seek, true);
       setPendingVideo(null);
@@ -179,6 +247,7 @@ export default function PartyRoomPage() {
   // === 6. Render UI ===
   if (!room) return <p>Loading room...</p>;
 
+  //Layout
   return (
   <div className="partyroom-page">
     {/* === Top bar === */}
@@ -196,7 +265,15 @@ export default function PartyRoomPage() {
       <div className="queue-panel">
         <h3>Queue</h3>
         <div className="queue-list">
+        {room.queue && room.queue.length > 0 ? (
+          <ul>
+            {room.queue.map((track, i) => (
+              <li key={i}>{track.trackId}</li>
+            ))}
+          </ul>
+        ) : (
           <p>(No tracks yet)</p>
+        )}
         </div>
       </div>
 
@@ -214,7 +291,12 @@ export default function PartyRoomPage() {
         <div className="partyroom-buttons">
           <button
           onClick={async () => {
-            const videoId = prompt("Enter YouTube Video ID:");
+            let input = prompt("Enter YouTube link or ID:");
+            if (!input) return;
+
+            // Extract video ID if full link
+            const match = input.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})(?:[?&]|$)/);
+            const videoId = match ? match[1] : input.trim();
             if (!videoId) return;
 
             if (!connection || connection.state !== "Connected") {
@@ -225,9 +307,6 @@ export default function PartyRoomPage() {
             try {
               // Enqueue expects an int room id (your hub uses int for EnqueueTrack)
               await connection.invoke("EnqueueTrack", parseInt(roomId), videoId);
-
-              // LoadVideo in your merged hub accepts (string roomId, string videoId) — send string
-              await connection.invoke("LoadVideo", roomId.toString(), videoId);
             } catch (err) {
               console.error("Enqueue/Load failed:", err);
               alert("Failed to enqueue or load the track.");
