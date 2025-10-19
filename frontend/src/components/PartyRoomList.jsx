@@ -84,7 +84,7 @@ function PartyRoomList() {
                     className="join-room-button"
                     onClick={() => handleJoinRoom(room.id)}
                   >
-                    <strong>{room.name}</strong> — {room.guestsCount}/
+                    <strong>{room.name}</strong> — {room.members.length}/
                     {room.capacity} {room.isPrivate ? "🔒" : ""}
                   </button>
                 </li>

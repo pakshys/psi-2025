@@ -6,6 +6,7 @@ import PartyRoomList from "./components/PartyRoomList";
 import PartyRoomPage from "./components/PartyRoomPage";
 import githubMark from "./assets/github-mark.svg";
 import UserMenu from "./components/UserMenu";
+import Profile from './components/Profile';
 
 function HomePage() {
     const navigate = useNavigate();
@@ -41,7 +42,8 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path = "/partyrooms" element = {<PartyRoomList/>} />
-      <Route path = "/room/:id" element = {<PartyRoomPage/>} />
+      <Route path="/room/:id" element={<PartyRoomPage />} />
+      <Route path="/profile" element={<Profile />} />
     </Routes>
   );
 }
