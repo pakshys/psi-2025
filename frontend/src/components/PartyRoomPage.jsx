@@ -105,26 +105,6 @@ export default function PartyRoomPage() {
     connectionRef.current = conn;
     let isReload = false;
 
-    conn.on("UserJoined", (roomId, guestsCount) => {
-      setRoom(prev => ({ ...prev, GuestsCount: guestsCount }));
-
-      // Optional: persist in database
-      fetch(`${API_URL}/${roomId}/update-members-count`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(guestsCount),
-      });
-    });
-
-    conn.on("UserLeft", (roomId, guestsCount) => {
-      setRoom(prev => ({ ...prev, GuestsCount: guestsCount }));
-
-      fetch(`${API_URL}/${roomId}/update-members-count`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(guestsCount),
-      });
-    });
 
     const bufferOrPlay = (event) => {
       if (!playerReadyRef.current || !playerRef.current) {

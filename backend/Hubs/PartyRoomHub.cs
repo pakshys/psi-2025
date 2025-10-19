@@ -1,5 +1,6 @@
 using backend.Models;
 using backend.Services;
+using backend.Database;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.Authorization;
 
@@ -8,11 +9,13 @@ namespace backend.Hubs
   [Authorize]
   public class PartyRoomHub : Hub
   {
+    private readonly ApplicationDbContext _dbContext;
     private readonly TrackQueueService _trackQueueService;
 
-    public PartyRoomHub(TrackQueueService trackQueueService)
+    public PartyRoomHub(TrackQueueService trackQueueService, ApplicationDbContext dbContext)
     {
       _trackQueueService = trackQueueService;
+      _dbContext = dbContext;
     }
 
     // === Playback state tracking ===
@@ -20,7 +23,6 @@ namespace backend.Hubs
     private static readonly Dictionary<string, RoomPlaybackState> _currentRoomStates = new();
     private static readonly Dictionary<string, Dictionary<string, string>> _votes = new();
     private static readonly Dictionary<string, RoomVote> _activeVotes = new();
-
 
     // === Active room connections ===
     private static readonly Dictionary<int, HashSet<string>> _roomUsers = new();
@@ -31,35 +33,51 @@ namespace backend.Hubs
       await Clients.Group(roomId).SendAsync("ReceiveMessage", user, message);
     }
 
-    // === Join ===
+    // === Join Room ===
     public async Task JoinRoom(int roomId)
     {
       string roomKey = roomId.ToString();
-      var userId = Context.UserIdentifier; // unique per authenticated user
+      var userId = Context.UserIdentifier!;
 
-      // Remove user from any other room first
+      // Remove user from any other rooms first
       foreach (var kv in _roomUsers.ToList())
       {
         if (kv.Value.Remove(userId))
         {
           await Groups.RemoveFromGroupAsync(Context.ConnectionId, kv.Key.ToString());
-          await Clients.Group(kv.Key.ToString()).SendAsync("MemberCountUpdated", kv.Value.ToList());
+          await Clients.Group(kv.Key.ToString()).SendAsync("MemberListUpdated", kv.Value.ToList());
+
+          // Update DB for that room
+          var oldRoom = await _dbContext.PartyRooms.FindAsync(kv.Key);
+          if (oldRoom != null)
+          {
+            oldRoom.GuestsCount = kv.Value.Count;
+            oldRoom.Members = new List<string>(kv.Value); // sync members
+            await _dbContext.SaveChangesAsync();
+          }
         }
       }
 
       if (!_roomUsers.ContainsKey(roomId))
         _roomUsers[roomId] = new HashSet<string>();
 
-      if (!_roomUsers[roomId].Contains(userId))
-        _roomUsers[roomId].Add(userId);
+      _roomUsers[roomId].Add(userId);
 
       await Groups.AddToGroupAsync(Context.ConnectionId, roomKey);
 
-      // send updated member list
+      // Update DB for this room
+      var room = await _dbContext.PartyRooms.FindAsync(roomId);
+      if (room != null)
+      {
+        room.GuestsCount = _roomUsers[roomId].Count;
+        room.Members = new List<string>(_roomUsers[roomId]); // sync members
+        await _dbContext.SaveChangesAsync();
+      }
+
+      // Broadcast updated members
       await Clients.Group(roomKey).SendAsync("MemberListUpdated", _roomUsers[roomId].ToList());
 
-
-      // Send current queue and sync video playback
+      // Send current queue and playback state to caller
       var queue = await _trackQueueService.GetTrackQueueAsync(roomId);
       await Clients.Caller.SendAsync("QueueUpdated", roomId, queue);
 
@@ -68,18 +86,14 @@ namespace backend.Hubs
         double effectiveTime = state.CurrentTime;
         if (state.IsPlaying)
         {
-          var elapsed = (DateTime.UtcNow - state.LastUpdatedUtc).TotalSeconds;
-          effectiveTime = Math.Max(0, state.CurrentTime + elapsed);
+          effectiveTime += (DateTime.UtcNow - state.LastUpdatedUtc).TotalSeconds;
         }
 
-        // send single sync payload to caller (client knows how to handle SyncTime)
         await Clients.Caller.SendAsync("SyncTime", new { videoId = state.VideoId, time = effectiveTime, isPlaying = state.IsPlaying });
       }
-
-      await Clients.Group(roomKey).SendAsync("MemberCountUpdated", _roomUsers[roomId].Count);
     }
 
-    // Leave party room group
+    // === Leave Room ===
     public async Task LeaveRoom(int roomId)
     {
       string roomKey = roomId.ToString();
@@ -90,37 +104,41 @@ namespace backend.Hubs
       if (_roomUsers.TryGetValue(roomId, out var users))
       {
         users.Remove(userId);
+
+        // Update DB
+        var room = await _dbContext.PartyRooms.FindAsync(roomId);
+        if (room != null)
+        {
+          room.GuestsCount = users.Count;
+          room.Members = new List<string>(users); // sync members
+          await _dbContext.SaveChangesAsync();
+        }
+
         await Clients.Group(roomKey).SendAsync("MemberListUpdated", users.ToList());
       }
 
       await Clients.Group(roomKey).SendAsync("UserLeft", roomId, userId);
     }
 
-    // Enqueue a track
+    // === Queue Management ===
     public async Task EnqueueTrack(int roomId, string trackId)
     {
       await _trackQueueService.EnqueueAsync(roomId, trackId);
       var queue = await _trackQueueService.GetTrackQueueAsync(roomId);
 
-      // Update queue for everyone
       await Clients.Group(roomId.ToString()).SendAsync("QueueUpdated", roomId, queue);
 
       string roomKey = roomId.ToString();
       bool shouldAutoPlay = false;
 
-      // Only auto-play if nothing is currently playing
       if (!_currentRoomStates.ContainsKey(roomKey) || !_currentRoomStates[roomKey].IsPlaying)
       {
         var now = DateTime.UtcNow;
         var firstTrack = queue.FirstOrDefault();
-        if (firstTrack != null)
+        if (firstTrack != null && (!_currentRoomStates.ContainsKey(roomKey) || _currentRoomStates[roomKey].VideoId != firstTrack.TrackId))
         {
-          // Only set if different from current video
-          if (!_currentRoomStates.ContainsKey(roomKey) || _currentRoomStates[roomKey].VideoId != firstTrack.TrackId)
-          {
-            _currentRoomStates[roomKey] = new RoomPlaybackState(firstTrack.TrackId, 0.0, false, now);
-            shouldAutoPlay = true;
-          }
+          _currentRoomStates[roomKey] = new RoomPlaybackState(firstTrack.TrackId, 0.0, false, now);
+          shouldAutoPlay = true;
         }
       }
 
@@ -128,11 +146,10 @@ namespace backend.Hubs
       {
         _currentRoomStates[roomKey] = _currentRoomStates[roomKey] with { IsPlaying = true, LastUpdatedUtc = DateTime.UtcNow };
         await Clients.Group(roomKey).SendAsync("LoadVideo", _currentRoomStates[roomKey].VideoId);
-        await Clients.Group(roomKey).SendAsync("Play"); // make it start immediately
+        await Clients.Group(roomKey).SendAsync("Play");
       }
     }
 
-    // Skip a track
     public async Task SkipTrack(int roomId)
     {
       var nextTrack = await _trackQueueService.DequeueAsync(roomId);
@@ -149,8 +166,6 @@ namespace backend.Hubs
       }
     }
 
-
-    // Dequeue a track
     public async Task<Track?> DequeueTrack(int roomId)
     {
       var dequeued = await _trackQueueService.DequeueAsync(roomId);
@@ -160,17 +175,16 @@ namespace backend.Hubs
       return dequeued;
     }
 
-    // Peek at the next track
     public async Task<Track?> PeekNextTrack(int roomId)
     {
       return await _trackQueueService.PeekAsync(roomId);
     }
 
-    // VOTING
+    // === Voting ===
     public async Task RequestVote(string roomId, string action)
     {
       if (_activeVotes.ContainsKey(roomId))
-        _activeVotes.Remove(roomId); // reset previous vote
+        _activeVotes.Remove(roomId);
 
       _activeVotes[roomId] = new RoomVote
       {
@@ -186,15 +200,12 @@ namespace backend.Hubs
       if (!_activeVotes.ContainsKey(roomId)) return;
 
       var roomVote = _activeVotes[roomId];
-
-      // Prevent duplicate votes
       if (roomVote.Votes.ContainsKey(userId)) return;
 
       roomVote.Votes[userId] = agree;
 
-      // Check if majority is reached
       int yesVotes = roomVote.Votes.Values.Count(v => v);
-      int totalMembers = 1; // fallback
+      int totalMembers = 1;
       if (int.TryParse(roomId, out int rid) && _roomUsers.ContainsKey(rid))
         totalMembers = _roomUsers[rid].Count;
 
@@ -203,55 +214,42 @@ namespace backend.Hubs
       if (participation >= 0.5)
       {
         await ApplyVoteAction(roomId, roomVote.Action);
-
         await Clients.Group(roomId).SendAsync("VoteResult", roomVote.Action, true);
-
         _activeVotes.Remove(roomId);
       }
       else
       {
-        // If not enough votes yet, just update frontend with progress
         await Clients.Group(roomId).SendAsync("VoteProgress", roomId, roomVote.Votes.Count, totalMembers);
       }
     }
 
-    // Helper to execute actions safely
     private async Task ApplyVoteAction(string roomId, string action)
     {
       switch (action)
       {
         case "Skip":
-          if (int.TryParse(roomId, out int rid))
-            await SkipTrack(rid);
+          if (int.TryParse(roomId, out int rid)) await SkipTrack(rid);
           break;
         case "Play":
+          await Play(roomId);
+          break;
         case "Pause":
-          // no int conversion needed
-          if (action == "Play") await Play(roomId);
-          else await Pause(roomId);
+          await Pause(roomId);
           break;
       }
     }
 
-
-    // Tracks votes per room
     private class RoomVote
     {
       public string Action { get; set; } = "";
-      public Dictionary<string, bool> Votes { get; set; } = new(); // userId -> yes/no
+      public Dictionary<string, bool> Votes { get; set; } = new();
       public DateTime StartTime { get; set; } = DateTime.UtcNow;
     }
-
-
-
-
 
     private async Task CheckVoteTimeouts()
     {
       var now = DateTime.UtcNow;
-      var expiredVotes = _activeVotes
-          .Where(kv => (now - kv.Value.StartTime).TotalSeconds > 30) // 30s timeout
-          .ToList();
+      var expiredVotes = _activeVotes.Where(kv => (now - kv.Value.StartTime).TotalSeconds > 30).ToList();
 
       foreach (var kv in expiredVotes)
       {
@@ -260,9 +258,7 @@ namespace backend.Hubs
       }
     }
 
-
-
-    // UI commands
+    // === Playback Controls ===
     public async Task LoadVideo(string roomId, string videoId)
     {
       var now = DateTime.UtcNow;
@@ -270,33 +266,26 @@ namespace backend.Hubs
       await Clients.Group(roomId).SendAsync("LoadVideo", videoId);
     }
 
-    // Play: accept optional currentTime, update state and broadcast SyncTime
     public async Task Play(string roomId, double? currentTime = null)
     {
       if (_currentRoomStates.TryGetValue(roomId, out var state))
       {
-        var newTime = state.CurrentTime;
-        if (currentTime.HasValue) newTime = currentTime.Value;
-
+        var newTime = currentTime ?? state.CurrentTime;
         _currentRoomStates[roomId] = state with { CurrentTime = newTime, IsPlaying = true, LastUpdatedUtc = DateTime.UtcNow };
         var updated = _currentRoomStates[roomId];
         await Clients.Group(roomId).SendAsync("SyncTime", new { videoId = updated.VideoId, time = updated.CurrentTime, isPlaying = true });
       }
       else
       {
-        // still notify clients to play if no state exists
         await Clients.Group(roomId).SendAsync("Play");
       }
     }
 
-    // Pause: accept optional currentTime, update state and broadcast SyncTime
     public async Task Pause(string roomId, double? currentTime = null)
     {
       if (_currentRoomStates.TryGetValue(roomId, out var state))
       {
-        var newTime = state.CurrentTime;
-        if (currentTime.HasValue) newTime = currentTime.Value;
-
+        var newTime = currentTime ?? state.CurrentTime;
         _currentRoomStates[roomId] = state with { CurrentTime = newTime, IsPlaying = false, LastUpdatedUtc = DateTime.UtcNow };
         var updated = _currentRoomStates[roomId];
         await Clients.Group(roomId).SendAsync("SyncTime", new { videoId = updated.VideoId, time = updated.CurrentTime, isPlaying = false });
@@ -307,7 +296,6 @@ namespace backend.Hubs
       }
     }
 
-    // UpdateTime: frontend periodically sends the latest time; store it along with timestamp and broadcast
     public async Task UpdateTime(string roomId, double currentTime)
     {
       if (_currentRoomStates.TryGetValue(roomId, out var state))
@@ -332,6 +320,5 @@ namespace backend.Hubs
 
       await base.OnDisconnectedAsync(exception);
     }
-
   }
 }
