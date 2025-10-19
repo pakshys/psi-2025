@@ -43,7 +43,7 @@ namespace backend.Hubs
                 if (kv.Value.Remove(userId))
                 {
                     await Groups.RemoveFromGroupAsync(Context.ConnectionId, kv.Key.ToString());
-                    await Clients.Group(kv.Key.ToString()).SendAsync("MemberCountUpdated", kv.Value.Count);
+                    await Clients.Group(kv.Key.ToString()).SendAsync("MemberCountUpdated", kv.Value.ToList());
                 }
             }
 
@@ -54,6 +54,9 @@ namespace backend.Hubs
                 _roomUsers[roomId].Add(userId);
 
             await Groups.AddToGroupAsync(Context.ConnectionId, roomKey);
+
+            // send updated member list
+            await Clients.Group(roomKey).SendAsync("MemberListUpdated", _roomUsers[roomId].ToList());
 
 
             // Send current queue and sync video playback
@@ -92,7 +95,7 @@ namespace backend.Hubs
             if (_roomUsers.TryGetValue(roomId, out var users))
             {
                 users.Remove(userId);
-                await Clients.Group(roomKey).SendAsync("MemberCountUpdated", users.Count);
+                await Clients.Group(roomKey).SendAsync("MemberListUpdated", users.ToList());
             }
 
             await Clients.Group(roomKey).SendAsync("UserLeft", roomId, userId);
@@ -312,7 +315,7 @@ namespace backend.Hubs
             {
                 if (kv.Value.Remove(userId))
                 {
-                    await Clients.Group(kv.Key.ToString()).SendAsync("MemberCountUpdated", kv.Value.Count);
+                    await Clients.Group(kv.Key.ToString()).SendAsync("MemberListUpdated", kv.Value.ToList());
                     break;
                 }
             }
