@@ -1,12 +1,13 @@
 using backend.Models;
 using backend.Services;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.Authorization;
 
 namespace backend.Hubs
 {
+    [Authorize]
     public class PartyRoomHub : Hub
     {
-        
         private readonly TrackQueueService _trackQueueService;
 
         public PartyRoomHub(TrackQueueService trackQueueService)
@@ -22,7 +23,7 @@ namespace backend.Hubs
 
 
         // === Active room connections ===
-        private static readonly Dictionary<int, HashSet<string>> _roomConnections = new(); 
+        private static readonly Dictionary<int, HashSet<string>> _roomUsers = new();
 
         // === Chat ===
         public async Task SendMessage(string roomId, string user, string message)
@@ -32,66 +33,69 @@ namespace backend.Hubs
 
         // === Join ===
         public async Task JoinRoom(int roomId)
-    {
-        string roomKey = roomId.ToString();
-
-        // Remove user from any other room first
-        foreach (var kv in _roomConnections.ToList())
         {
-            if (kv.Value.Remove(Context.ConnectionId))
+            string roomKey = roomId.ToString();
+            var userId = Context.UserIdentifier; // unique per authenticated user
+
+            // Remove user from any other room first
+            foreach (var kv in _roomUsers.ToList())
             {
-                await Groups.RemoveFromGroupAsync(Context.ConnectionId, kv.Key.ToString());
-                int members = kv.Value.Count;
-                await Clients.Group(kv.Key.ToString()).SendAsync("MemberCountUpdated", members);
-            }
-        }
-
-        await Groups.AddToGroupAsync(Context.ConnectionId, roomKey);
-
-        if (!_roomConnections.ContainsKey(roomId))
-            _roomConnections[roomId] = new HashSet<string>();
-        _roomConnections[roomId].Add(Context.ConnectionId);
-
-        // Send current queue and sync video playback
-        var queue = await _trackQueueService.GetTrackQueueAsync(roomId);
-        await Clients.Caller.SendAsync("QueueUpdated", roomId, queue);
-
-        if (_currentRoomStates.TryGetValue(roomKey, out var state))
-        {
-            double effectiveTime = state.CurrentTime;
-            if (state.IsPlaying)
-            {
-                var elapsed = (DateTime.UtcNow - state.LastUpdatedUtc).TotalSeconds;
-                effectiveTime = Math.Max(0, state.CurrentTime + elapsed);
+                if (kv.Value.Remove(userId))
+                {
+                    await Groups.RemoveFromGroupAsync(Context.ConnectionId, kv.Key.ToString());
+                    await Clients.Group(kv.Key.ToString()).SendAsync("MemberCountUpdated", kv.Value.Count);
+                }
             }
 
-            await Clients.Caller.SendAsync("LoadVideo", state.VideoId);
-            await Clients.Caller.SendAsync("SeekTo", effectiveTime);
+            if (!_roomUsers.ContainsKey(roomId))
+              _roomUsers[roomId] = new HashSet<string>();
 
-            if (state.IsPlaying)
-                await Clients.Caller.SendAsync("Play");
-            else
-                await Clients.Caller.SendAsync("Pause");
+            if (!_roomUsers[roomId].Contains(userId))
+                _roomUsers[roomId].Add(userId);
+
+            await Groups.AddToGroupAsync(Context.ConnectionId, roomKey);
+
+
+            // Send current queue and sync video playback
+            var queue = await _trackQueueService.GetTrackQueueAsync(roomId);
+            await Clients.Caller.SendAsync("QueueUpdated", roomId, queue);
+
+            if (_currentRoomStates.TryGetValue(roomKey, out var state))
+            {
+                double effectiveTime = state.CurrentTime;
+                if (state.IsPlaying)
+                {
+                    var elapsed = (DateTime.UtcNow - state.LastUpdatedUtc).TotalSeconds;
+                    effectiveTime = Math.Max(0, state.CurrentTime + elapsed);
+                }
+
+                await Clients.Caller.SendAsync("LoadVideo", state.VideoId);
+                await Clients.Caller.SendAsync("SeekTo", effectiveTime);
+
+                if (state.IsPlaying)
+                    await Clients.Caller.SendAsync("Play");
+                else
+                    await Clients.Caller.SendAsync("Pause");
+            }
+
+            await Clients.Group(roomKey).SendAsync("MemberCountUpdated", _roomUsers[roomId].Count);
         }
-
-        int membersCount = _roomConnections[roomId].Count;
-        await Clients.Group(roomKey).SendAsync("MemberCountUpdated", membersCount);
-    }
 
         // Leave party room group
         public async Task LeaveRoom(int roomId)
         {
-            string key = roomId.ToString();
-            await Groups.RemoveFromGroupAsync(Context.ConnectionId, key);
+            string roomKey = roomId.ToString();
+            var userId = Context.UserIdentifier!;
 
-            if (_roomConnections.TryGetValue(roomId, out var connections))
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, roomKey);
+
+            if (_roomUsers.TryGetValue(roomId, out var users))
             {
-                connections.Remove(Context.ConnectionId);
-                int members = connections.Count;
-                await Clients.Group(key).SendAsync("MemberCountUpdated", members);
+                users.Remove(userId);
+                await Clients.Group(roomKey).SendAsync("MemberCountUpdated", users.Count);
             }
 
-            await Clients.Group(key).SendAsync("UserLeft", roomId, Context.ConnectionId);
+            await Clients.Group(roomKey).SendAsync("UserLeft", roomId, userId);
         }
 
         // Enqueue a track
@@ -193,8 +197,8 @@ namespace backend.Hubs
             // Check if majority is reached
             int yesVotes = roomVote.Votes.Values.Count(v => v);
             int totalMembers = 1; // fallback
-            if (int.TryParse(roomId, out int rid) && _roomConnections.ContainsKey(rid))
-                totalMembers = _roomConnections[rid].Count;
+            if (int.TryParse(roomId, out int rid) && _roomUsers.ContainsKey(rid))
+                totalMembers = _roomUsers[rid].Count;
 
             double participation = yesVotes / (double)Math.Max(1, totalMembers);
 
@@ -303,12 +307,12 @@ namespace backend.Hubs
 
         public override async Task OnDisconnectedAsync(Exception? exception)
         {
-            foreach (var kv in _roomConnections)
+            var userId = Context.UserIdentifier!;
+            foreach (var kv in _roomUsers)
             {
-                if (kv.Value.Remove(Context.ConnectionId))
+                if (kv.Value.Remove(userId))
                 {
-                    int members = kv.Value.Count;
-                    await Clients.Group(kv.Key.ToString()).SendAsync("MemberCountUpdated", members);
+                    await Clients.Group(kv.Key.ToString()).SendAsync("MemberCountUpdated", kv.Value.Count);
                     break;
                 }
             }

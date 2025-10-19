@@ -9,6 +9,8 @@ export default function PartyRoomPage() {
   const { id: roomId } = useParams();
   const [room, setRoom] = useState(null);
   const navigate = useNavigate();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [username, setUsername] = useState("");
   const [connection, setConnection] = useState(null);
   const [player, setPlayer] = useState(null);
   const [playerReady, setPlayerReady] = useState(false);
@@ -17,6 +19,24 @@ export default function PartyRoomPage() {
   const [isMuted, setIsMuted] = useState(true); // start muted
   const PLACEHOLDER_VIDEO = "dQw4w9WgXcQ"; // or any neutral video
 
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const res = await fetch("https://localhost:7234/Account/Me", { credentials: "include" });
+        if (!res.ok) {
+          navigate("/login");
+        } else {
+          const data = await res.json();
+          setIsAuthenticated(true);
+          setUsername(data.userName);
+        }
+      } catch (err) {
+        console.error("Auth check failed:", err);
+        navigate("/login");
+      }
+    };
+    checkAuth();
+  }, [navigate]);
 
   useEffect(() => {
     if (playerReady && player && bufferedEvents.length > 0) {
@@ -46,7 +66,9 @@ export default function PartyRoomPage() {
 
   // === 2. Setup SignalR connection ===
   // === 2. Setup SignalR connection + handle player properly ===
-useEffect(() => {
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
   const conn = new signalR.HubConnectionBuilder()
     .withUrl("https://localhost:7234/hubs/partyroom")
     .withAutomaticReconnect([0, 2000, 5000, 10000])
@@ -87,6 +109,7 @@ useEffect(() => {
 
   // --- Reconnect handler ---
   conn.onreconnected(() => {
+    if (!isAuthenticated) return;
     console.log("Reconnected — rejoining room...");
 
     if (player) {
@@ -108,7 +131,7 @@ useEffect(() => {
     }
     conn.stop().catch(() => {});
   };
-}, [roomId]);
+  }, [roomId, isAuthenticated]);
 
 
   // === 3. Load YouTube iframe API ===
@@ -269,7 +292,7 @@ useEffect(() => {
 
   const handleSendMessage = () => {
     if (newMessage.trim()) {
-      connection.invoke("SendMessage", roomId, "User", newMessage);
+      connection.invoke("SendMessage", roomId, username, newMessage);
       setNewMessage("");
     }
   };

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.SignalR;
 using backend.Extensions;
 using backend.Database;
 using backend.Models;
@@ -27,22 +28,26 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // Configure authentication and authorization
-builder.Services.AddIdentity<User, IdentityRole>()
+builder.Services.AddIdentity<User, IdentityRole>(options =>
+    {
+        options.SignIn.RequireConfirmedAccount = false;
+    })
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultTokenProviders();
 
 builder.Services.AddAuthorization();
 
-builder.Services.AddIdentityCore<User>(options =>
-{
-    options.SignIn.RequireConfirmedAccount = false;
-})
-.AddEntityFrameworkStores<ApplicationDbContext>()
-.AddSignInManager()
-.AddApiEndpoints();
+//builder.Services.AddIdentityCore<User>(options =>
+//{
+//    options.SignIn.RequireConfirmedAccount = false;
+//})
+//.AddEntityFrameworkStores<ApplicationDbContext>()
+//.AddSignInManager()
+//.AddApiEndpoints();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("Database")));
+
 
 // Register PartyRoomService for dependency injection
 builder.Services.AddScoped<PartyRoomService>();
@@ -57,7 +62,15 @@ builder.Services.AddScoped<FriendshipService>();
 builder.Services.AddScoped<TrackQueueService>();
 
 // Register SignalR for real-time functionalities
-builder.Services.AddSignalR();
+builder.Services.AddSignalR(options =>
+{
+  options.EnableDetailedErrors = true;
+}).AddHubOptions<PartyRoomHub>(options =>
+{
+  options.ClientTimeoutInterval = TimeSpan.FromMinutes(10);
+});
+
+builder.Services.AddSingleton<IUserIdProvider, NameUserIdProvider>();
 
 var app = builder.Build();
 
@@ -66,20 +79,19 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
-
+  
     app.ApplyMigrations();  
 }
 
 //app.UseHttpsRedirection(); //(BAD HANDSHAKE HTTP <-> HTTPS issue)
 
-app.UseAuthorization();
-
 app.UseCors("AllowFrontend");
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 
 // Map SignalR PartyRoomHub
-app.UseCors("AllowFrontend");
 app.MapHub<PartyRoomHub>("/hubs/partyroom");
 
 app.Run();
