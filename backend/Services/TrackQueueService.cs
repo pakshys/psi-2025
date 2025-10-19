@@ -1,4 +1,5 @@
 using backend.Database;
+using backend.Extensions;
 using backend.Models;
 using Dtos;
 using Microsoft.EntityFrameworkCore;
@@ -76,7 +77,6 @@ public class TrackQueueService
             .OrderBy(p => p.Position)
             .ToListAsync();
 
-        return tracks.Select(t =>
-            new TrackDto(TrackId: t.TrackId, Position: t.Position)).ToList();
+        return tracks.Select(track => track.ToDto()).ToList();
     }
 }
