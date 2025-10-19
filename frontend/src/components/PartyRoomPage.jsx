@@ -14,6 +14,9 @@ export default function PartyRoomPage() {
   const [playerReady, setPlayerReady] = useState(false);
   const [pendingVideo, setPendingVideo] = useState(null);
   const [bufferedEvents, setBufferedEvents] = useState([]);
+  const [isMuted, setIsMuted] = useState(true); // start muted
+  const PLACEHOLDER_VIDEO = "dQw4w9WgXcQ"; // or any neutral video
+
 
   useEffect(() => {
     if (playerReady && player && bufferedEvents.length > 0) {
@@ -42,67 +45,94 @@ export default function PartyRoomPage() {
   }, [roomId]);
 
   // === 2. Setup SignalR connection ===
-  useEffect(() => {
-    const conn = new signalR.HubConnectionBuilder()
-      .withUrl("https://localhost:7234/hubs/partyroom")
-      .withAutomaticReconnect([0, 2000, 5000, 10000])
-      .build();
+  // === 2. Setup SignalR connection + handle player properly ===
+useEffect(() => {
+  const conn = new signalR.HubConnectionBuilder()
+    .withUrl("https://localhost:7234/hubs/partyroom")
+    .withAutomaticReconnect([0, 2000, 5000, 10000])
+    .build();
 
-    let isReload = false;
+  let isReload = false;
 
-    const handleUnload = () => {
-      // Detect reload (don’t send leave beacon for reloads)
-      const nav = performance.getEntriesByType("navigation")[0];
-      if (nav && nav.type === "reload") {
-        isReload = true;
-        return;
+  // --- Handle page reload / leave ---
+  const handleUnload = () => {
+    const nav = performance.getEntriesByType("navigation")[0];
+    if (nav && nav.type === "reload") {
+      isReload = true;
+      return;
+    }
+    navigator.sendBeacon(`${API_URL}/${roomId}/leave`);
+  };
+  window.addEventListener("beforeunload", handleUnload);
+
+  // --- Start connection ---
+  conn.start()
+    .then(() => {
+      console.log("Connected to SignalR hub");
+
+      // --- CLEANUP OLD PLAYER (if exists) ---
+      if (player) {
+        player.destroy();
+        setPlayer(null);
+        setPlayerReady(false);
+        setBufferedEvents([]);
+        setPendingVideo(null);
       }
 
-      navigator.sendBeacon(`${API_URL}/${roomId}/leave`);
-    };
+      // --- JOIN ROOM ---
+      return conn.invoke("JoinRoom", parseInt(roomId));
+    })
+    .then(() => setConnection(conn))
+    .catch(err => console.error("SignalR connection failed:", err));
 
-    window.addEventListener("beforeunload", handleUnload);
+  // --- Reconnect handler ---
+  conn.onreconnected(() => {
+    console.log("Reconnected — rejoining room...");
 
-    conn
-      .start()
-      .then(() => {
-        console.log("✅ Connected to SignalR hub");
-        return conn.invoke("JoinRoom", parseInt(roomId));
-      })
-      .then(() => setConnection(conn))
-      .catch((err) => {
-        console.error("SignalR connection failed:", err);
-      });
+    if (player) {
+      player.destroy();
+      setPlayer(null);
+      setPlayerReady(false);
+      setBufferedEvents([]);
+      setPendingVideo(null);
+    }
 
-    conn.onreconnected(() => {
-      console.log("🔄 Reconnected — rejoining room...");
-      conn.invoke("JoinRoom", parseInt(roomId)).catch(() => {});
-    });
+    conn.invoke("JoinRoom", parseInt(roomId)).catch(() => {});
+  });
 
-    // === Cleanup ===
-    return () => {
-      window.removeEventListener("beforeunload", handleUnload);
-      if (!isReload) {
-        conn.invoke("LeaveRoom", parseInt(roomId)).catch(() => {});
-      }
-      conn.stop().catch(() => {});
-    };
-  }, [roomId]);
-
+  // --- CLEANUP on unmount ---
+  return () => {
+    window.removeEventListener("beforeunload", handleUnload);
+    if (!isReload) {
+      conn.invoke("LeaveRoom", parseInt(roomId)).catch(() => {});
+    }
+    conn.stop().catch(() => {});
+  };
+}, [roomId]);
 
 
   // === 3. Load YouTube iframe API ===
   useEffect(() => {
+    if (!room) return; // <-- wait until room is fetched
+
     function initPlayer() {
       const ytPlayer = new window.YT.Player("player", {
         height: "360",
         width: "640",
-        videoId: "",
-        playerVars: { autoplay: 0, controls: 1, origin: window.location.origin },
+        videoId: room.queue && room.queue.length > 0 ? room.queue[0].TrackId : PLACEHOLDER_VIDEO,
+        playerVars: {
+          autoplay: 1,    // enable autoplay
+          controls: 1,
+          origin: window.location.origin,
+          mute: 1,        // mute to allow autoplay
+        },
         events: {
           onReady: (e) => {
             setPlayer(e.target);
             setPlayerReady(true);
+
+            // Optional: unmute after first user interaction
+            e.target.playVideo();  // start muted autoplay
           },
         },
       });
@@ -115,7 +145,7 @@ export default function PartyRoomPage() {
       window.onYouTubeIframeAPIReady = initPlayer;
       document.body.appendChild(tag);
     }
-  }, []);
+  }, [room]);
 
 
   // === 4. Hook SignalR events ===
@@ -265,15 +295,32 @@ export default function PartyRoomPage() {
       <div className="queue-panel">
         <h3>Queue</h3>
         <div className="queue-list">
-        {room.queue && room.queue.length > 0 ? (
-          <ul>
-            {room.queue.map((track, i) => (
-              <li key={i}>{track.trackId}</li>
-            ))}
-          </ul>
-        ) : (
-          <p>(No tracks yet)</p>
-        )}
+          {room.queue && room.queue.length > 0 ? (
+            <ul>
+                {room.queue && room.queue.length > 0 ? (
+                  room.queue.map((track, i) => {
+                    // Show placeholder if the track is a placeholder
+                    const isPlaceholder = track.TrackId === "placeholder" || !track.TrackId;
+                    const title = isPlaceholder
+                      ? "No video loaded"
+                      : track.Title || track.title || track.TrackId || "Unknown";
+                    const creator = isPlaceholder
+                      ? ""
+                      : track.Creator || track.creator || track.ChannelTitle || "Unknown";
+
+                    return (
+                      <li key={i}>
+                        {title} {creator && `— ${creator}`}
+                      </li>
+                    );
+                  })
+                ) : (
+                  <li>No tracks yet</li>
+                )}
+              </ul>
+          ) : (
+            <p>(No tracks yet)</p>
+          )}
         </div>
       </div>
 
@@ -290,48 +337,43 @@ export default function PartyRoomPage() {
 
         <div className="partyroom-buttons">
           <button
-          onClick={async () => {
-            let input = prompt("Enter YouTube link or ID:");
-            if (!input) return;
+            onClick={async () => {
+              let input = prompt("Enter YouTube link or ID:");
+              if (!input) return;
 
-            // Extract video ID if full link
-            const match = input.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})(?:[?&]|$)/);
-            const videoId = match ? match[1] : input.trim();
-            if (!videoId) return;
+              const match = input.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})(?:[?&]|$)/);
+              const videoId = match ? match[1] : input.trim();
+              if (!videoId) return;
 
-            if (!connection || connection.state !== "Connected") {
-              alert("Not connected to server yet. Try again in a moment.");
-              return;
-            }
+              if (!connection || connection.state !== "Connected") {
+                alert("Not connected to server yet. Try again in a moment.");
+                return;
+              }
 
-            try {
-              // Enqueue expects an int room id (your hub uses int for EnqueueTrack)
-              await connection.invoke("EnqueueTrack", parseInt(roomId), videoId);
-            } catch (err) {
-              console.error("Enqueue/Load failed:", err);
-              alert("Failed to enqueue or load the track.");
-            }
-          }}
-        >
-          Add to Queue
-        </button>
+              try {
+                await connection.invoke("EnqueueTrack", parseInt(roomId), videoId);
+              } catch (err) {
+                console.error("Enqueue/Load failed:", err);
+                alert("Failed to enqueue or load the track.");
+              }
+            }}
+          >
+            Add to Queue
+          </button>
 
-        <button
-          onClick={() =>
-            connection.invoke("RequestVote", roomId.toString(), "Play")
-          }
-        >
-          Vote Play
-        </button>
+          <button
+            onClick={() => {
+              if (!connection || connection.state !== "Connected") return;
+              connection.invoke("RequestVote", roomId.toString(), "Skip");
+            }}
+          >
+            Vote Skip
+          </button>
 
-        <button
-          onClick={() =>
-            connection.invoke("RequestVote", roomId.toString(), "Pause")
-          }
-        >
-          Vote Pause
-        </button>
+          <button onClick={() => connection.invoke("RequestVote", roomId.toString(), "Play")}>Vote Play</button>
+          <button onClick={() => connection.invoke("RequestVote", roomId.toString(), "Pause")}>Vote Pause</button>
         </div>
+
       </div>
 
       {/* === Chat (Right) === */}
@@ -351,7 +393,6 @@ export default function PartyRoomPage() {
                             "CastVote",
                             roomId.toString(),
                             connection.connectionId, // using connectionId as user
-                            m.action,
                             true
                           )
                         }
@@ -364,7 +405,6 @@ export default function PartyRoomPage() {
                             "CastVote",
                             roomId.toString(),
                             connection.connectionId,
-                            m.action,
                             false
                           )
                         }
@@ -411,6 +451,23 @@ export default function PartyRoomPage() {
               if (player && playerReady) player.setVolume(parseInt(e.target.value));
             }}
           />
+          
+          {player && playerReady && (
+            <button
+              onClick={() => {
+                if (!player) return;
+                if (isMuted) {
+                  player.unMute();
+                  setIsMuted(false);
+                } else {
+                  player.mute();
+                  setIsMuted(true);
+                }
+              }}
+            >
+              {isMuted ? "Unmute" : "Mute"}
+            </button>
+          )}
         </div>
       </div>
     </div>

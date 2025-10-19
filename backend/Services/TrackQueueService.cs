@@ -2,6 +2,9 @@ using backend.Database;
 using backend.Models;
 using Dtos;
 using Microsoft.EntityFrameworkCore;
+using Google.Apis.Services;
+using Google.Apis.YouTube.v3;
+
 
 namespace backend.Services;
 
@@ -76,7 +79,72 @@ public class TrackQueueService
             .OrderBy(p => p.Position)
             .ToListAsync();
 
-        return tracks.Select(t =>
-            new TrackDto(TrackId: t.TrackId, Position: t.Position)).ToList();
+        var trackDtos = new List<TrackDto>();
+
+        // Initialize YouTube API
+        var youtubeService = new YouTubeService(new BaseClientService.Initializer()
+        {
+            ApiKey = "YOUR_YOUTUBE_API_KEY",
+            ApplicationName = "psi-2025"
+        });
+
+        if (!tracks.Any())
+        {
+            // No videos in queue — return a placeholder
+            trackDtos.Add(new TrackDto(
+                TrackId: "placeholder",
+                Position: 0,
+                Title: "No video loaded",
+                Creator: ""
+            ));
+            return trackDtos;
+        }
+
+        foreach (var track in tracks)
+        {
+            try
+            {
+                // Clean the TrackId: remove playlist/index params
+                var cleanTrackId = track.TrackId.Split('&')[0];
+
+                var videoRequest = youtubeService.Videos.List("snippet");
+                videoRequest.Id = cleanTrackId;
+                var response = await videoRequest.ExecuteAsync();
+
+                var video = response.Items.FirstOrDefault();
+                if (video != null)
+                {
+                    trackDtos.Add(new TrackDto(
+                        TrackId: track.TrackId,
+                        Position: track.Position,
+                        Title: video.Snippet.Title,
+                        Creator: video.Snippet.ChannelTitle
+                    ));
+                }
+                else
+                {
+                    // Video not found — show safe fallback
+                    trackDtos.Add(new TrackDto(
+                        TrackId: track.TrackId,
+                        Position: track.Position,
+                        Title: "Video unavailable",
+                        Creator: ""
+                    ));
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching video {track.TrackId}: {ex.Message}");
+                trackDtos.Add(new TrackDto(
+                    TrackId: track.TrackId,
+                    Position: track.Position,
+                    Title: "Video unavailable",
+                    Creator: ""
+                ));
+            }
+        }
+
+        return trackDtos;
     }
+
 }
