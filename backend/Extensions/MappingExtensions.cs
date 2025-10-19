@@ -1,5 +1,5 @@
 using backend.Models;
-using Dtos;
+using backend.Dtos;
 
 namespace backend.Extensions;
 

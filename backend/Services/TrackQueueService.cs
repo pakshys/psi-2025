@@ -1,7 +1,7 @@
 using backend.Database;
 using backend.Extensions;
 using backend.Models;
-using Dtos;
+using backend.Dtos;
 using Microsoft.EntityFrameworkCore;
 
 namespace backend.Services;
