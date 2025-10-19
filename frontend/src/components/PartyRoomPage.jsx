@@ -24,7 +24,7 @@ export default function PartyRoomPage() {
 
   // === SIGNALR & PLAYER STATE ===
   const [connection, setConnection] = useState(null);
-  const connectionRef = useRef(null); // prevent stale closure
+  const connectionRef = useRef(null);
   const [player, setPlayer] = useState(null);
   const playerRef = useRef(null);
   const [playerReady, setPlayerReady] = useState(false);
@@ -43,9 +43,8 @@ export default function PartyRoomPage() {
     const checkAuth = async () => {
       try {
         const res = await fetch("https://localhost:7234/Account/Me", { credentials: "include" });
-        if (!res.ok) {
-          navigate("/login");
-        } else {
+        if (!res.ok) navigate("/login");
+        else {
           const data = await res.json();
           setIsAuthenticated(true);
           setUsername(data.userName);
@@ -70,18 +69,19 @@ export default function PartyRoomPage() {
   const flushEvents = () => {
     if (!playerReadyRef.current || !playerRef.current) return;
 
-    // process pending video first
     if (pendingVideo?.videoId) {
       playerRef.current.loadVideoById(pendingVideo.videoId);
       if (pendingVideo.seek != null) playerRef.current.seekTo(pendingVideo.seek, true);
       setPendingVideo(null);
     }
 
-    // process buffered events
     bufferedEvents.forEach((event) => {
       const p = playerRef.current;
       switch (event.type) {
-        case "load": p.loadVideoById(event.videoId); break;
+        case "load":
+          if (event.time != null) p.loadVideoById(event.videoId, event.time);
+          else p.loadVideoById(event.videoId);
+          break;
         case "seek": p.seekTo(event.time, true); break;
         case "play": p.playVideo(); break;
         case "pause": p.pauseVideo(); break;
@@ -103,10 +103,8 @@ export default function PartyRoomPage() {
       .build();
 
     connectionRef.current = conn;
-
     let isReload = false;
 
-    // --- Helper: buffer events if player not ready ---
     const bufferOrPlay = (event) => {
       if (!playerReadyRef.current || !playerRef.current) {
         setBufferedEvents((prev) => [...prev, event]);
@@ -121,7 +119,6 @@ export default function PartyRoomPage() {
       }
     };
 
-    // --- Handler for page reload / leave ---
     const handleUnload = () => {
       const nav = performance.getEntriesByType("navigation")[0];
       if (nav && nav.type === "reload") {
@@ -132,28 +129,43 @@ export default function PartyRoomPage() {
     };
     window.addEventListener("beforeunload", handleUnload);
 
-    // --- Setup SignalR event handlers ---
-    conn.on("SyncTime", (time) => {
+    conn.on("SyncTime", ({ videoId, time, isPlaying }) => {
       if (!playerReadyRef.current || !playerRef.current) {
-        setBufferedEvents((prev) => [...prev, { type: "seek", time }]);
+        setPendingVideo({ videoId, seek: time, play: isPlaying });
         return;
       }
-      const currentTime = playerRef.current.getCurrentTime();
-      if (Math.abs(currentTime - time) > 2) playerRef.current.seekTo(time, true);
+      const p = playerRef.current;
+
+      if (videoId !== p.getVideoData().video_id) {
+        p.loadVideoById(videoId, time);
+      } else {
+        const delta = Math.abs(p.getCurrentTime() - time);
+        if (delta > 0.2) p.seekTo(time, true);
+      }
+
+      if (isPlaying && p.getPlayerState() !== 1) p.playVideo();
+      if (!isPlaying && p.getPlayerState() === 1) p.pauseVideo();
     });
 
     conn.on("MemberListUpdated", (members) => setRoom((prev) => ({ ...prev, members })));
     conn.on("QueueUpdated", (_, queue) => setRoom((prev) => ({ ...prev, queue })));
-    conn.on("ReceiveMessage", (user, message) => setMessages((prev) => [...prev, { user, message }]));
-    conn.on("VoteRequested", (action) => setMessages((prev) => [...prev, { system: true, message: `Vote started: ${action}?`, action }]));
-    conn.on("VoteResult", (action, passed) => setMessages((prev) => [...prev, { system: true, message: `Vote result for ${action}: ${passed ? "✅ Passed" : "❌ Failed"}` }]));
+
+    // Robust chat handlers
+    conn.on("ReceiveMessage", (user, message) =>
+      setMessages((prev) => [...prev, { user, message }])
+    );
+    conn.on("VoteRequested", (action) =>
+      setMessages((prev) => [...prev, { system: true, message: `Vote started: ${action}?`, action }])
+    );
+    conn.on("VoteResult", (action, passed) =>
+      setMessages((prev) => [...prev, { system: true, message: `Vote result for ${action}: ${passed ? "✅ Passed" : "❌ Failed"}` }])
+    );
 
     conn.on("LoadVideo", (videoId) => bufferOrPlay({ type: "load", videoId }));
     conn.on("SeekTo", (time) => bufferOrPlay({ type: "seek", time }));
     conn.on("Play", () => bufferOrPlay({ type: "play" }));
     conn.on("Pause", () => bufferOrPlay({ type: "pause" }));
 
-    // --- Periodic sync ---
     const syncInterval = setInterval(() => {
       if (
         connectionRef.current &&
@@ -166,12 +178,9 @@ export default function PartyRoomPage() {
       }
     }, 3000);
 
-    // --- Start connection ---
     conn.start()
       .then(async () => {
         console.log("Connected to SignalR hub");
-
-        // Wait until YouTube player ready
         await new Promise((resolve) => {
           if (playerReadyRef.current) resolve();
           else {
@@ -180,7 +189,6 @@ export default function PartyRoomPage() {
             }, 100);
           }
         });
-
         await conn.invoke("JoinRoom", parseInt(roomId));
       })
       .then(() => setConnection(conn))
@@ -191,7 +199,6 @@ export default function PartyRoomPage() {
       conn.invoke("JoinRoom", parseInt(roomId)).catch(() => { });
     });
 
-    // --- Cleanup on unmount ---
     return () => {
       clearInterval(syncInterval);
       window.removeEventListener("beforeunload", handleUnload);
@@ -216,9 +223,8 @@ export default function PartyRoomPage() {
             playerRef.current = e.target;
             setPlayerReady(true);
             playerReadyRef.current = true;
-            e.target.playVideo(); // start muted autoplay
+            e.target.playVideo();
 
-            // broadcast local play/pause
             e.target.addEventListener("onStateChange", (event) => {
               if (!connectionRef.current) return;
               const time = e.target.getCurrentTime();
@@ -241,20 +247,33 @@ export default function PartyRoomPage() {
     }
   }, [room, roomId]);
 
-  // === 6. HANDLE PENDING VIDEO ===
-  useEffect(() => flushEvents(), [playerReady, player, pendingVideo]);
-
-  // === 7. HANDLERS ===
-  const handleLeaveRoom = () => {
-    fetch(`${API_URL}/${roomId}/leave`, { method: "POST" })
-      .then(() => navigate("/partyrooms"))
-      .catch((err) => alert(err.message));
+  // === 6. HANDLERS ===
+  const handleLeaveRoom = async () => {
+    try {
+      if (connectionRef.current && connectionRef.current.state === signalR.HubConnectionState.Connected) {
+        await connectionRef.current.invoke("LeaveRoom", parseInt(roomId));
+      }
+      await fetch(`${API_URL}/${roomId}/leave`, { method: "POST" });
+      navigate("/partyrooms");
+      window.location.reload();
+    } catch (err) {
+      console.error("Failed to leave room:", err);
+      alert("Failed to leave room.");
+    }
   };
 
-  const handleSendMessage = () => {
-    if (newMessage.trim() && connectionRef.current) {
-      connectionRef.current.invoke("SendMessage", roomId, username, newMessage);
+  const handleSendMessage = async () => {
+    if (!newMessage.trim()) return;
+    try {
+      if (!connection || connection.state !== signalR.HubConnectionState.Connected) {
+        alert("Not connected to server. Please wait and try again.");
+        return;
+      }
+      await connection.invoke("SendMessage", roomId.toString(), username, newMessage);
       setNewMessage("");
+    } catch (err) {
+      console.error("SendMessage failed:", err);
+      alert("Failed to send message.");
     }
   };
 
