@@ -37,45 +37,66 @@ namespace backend.Hubs
     public async Task JoinRoom(int roomId)
     {
       string roomKey = roomId.ToString();
-      var userId = Context.UserIdentifier!;
+      var userId = Context.UserIdentifier;
+      if (string.IsNullOrEmpty(userId))
+      {
+        // caller is not authenticated / identifier missing
+        await Clients.Caller.SendAsync("Error", "UserIdentifier missing");
+        return;
+      }
 
-      // Remove user from any other rooms first
+      // Remove user from any other rooms first (iterate snapshot + null-check)
       foreach (var kv in _roomUsers.ToList())
       {
-        if (kv.Value.Remove(userId))
-        {
-          await Groups.RemoveFromGroupAsync(Context.ConnectionId, kv.Key.ToString());
-          await Clients.Group(kv.Key.ToString()).SendAsync("MemberListUpdated", kv.Value.ToList());
+        var otherRoomId = kv.Key;
+        var members = kv.Value;
+        if (members == null)
+          continue;
 
-          // Update DB for that room
-          var oldRoom = await _dbContext.PartyRooms.FindAsync(kv.Key);
+        if (members.Remove(userId))
+        {
+          // best-effort remove connection from old group
+          try { await Groups.RemoveFromGroupAsync(Context.ConnectionId, otherRoomId.ToString()); } catch { }
+
+          try
+          {
+            await Clients.Group(otherRoomId.ToString()).SendAsync("MemberListUpdated", members.ToList());
+          }
+          catch { /* ignore send failures */ }
+
+          // Update DB for that room (best-effort)
+          var oldRoom = await _dbContext.PartyRooms.FindAsync(otherRoomId);
           if (oldRoom != null)
           {
-            oldRoom.GuestsCount = kv.Value.Count;
-            oldRoom.Members = new List<string>(kv.Value); // sync members
+            oldRoom.Members = new List<string>(members);
+            oldRoom.GuestsCount = members.Count;
             await _dbContext.SaveChangesAsync();
           }
         }
       }
 
-      if (!_roomUsers.ContainsKey(roomId))
-        _roomUsers[roomId] = new HashSet<string>();
+      // Ensure room entry exists
+      if (!_roomUsers.TryGetValue(roomId, out var roomSet) || roomSet == null)
+      {
+        roomSet = new HashSet<string>();
+        _roomUsers[roomId] = roomSet;
+      }
 
-      _roomUsers[roomId].Add(userId);
+      roomSet.Add(userId);
 
       await Groups.AddToGroupAsync(Context.ConnectionId, roomKey);
 
-      // Update DB for this room
+      // Update DB for this room (best-effort)
       var room = await _dbContext.PartyRooms.FindAsync(roomId);
       if (room != null)
       {
-        room.GuestsCount = _roomUsers[roomId].Count;
-        room.Members = new List<string>(_roomUsers[roomId]); // sync members
+        room.Members = new List<string>(roomSet);
+        room.GuestsCount = roomSet.Count;
         await _dbContext.SaveChangesAsync();
       }
 
       // Broadcast updated members
-      await Clients.Group(roomKey).SendAsync("MemberListUpdated", _roomUsers[roomId].ToList());
+      await Clients.Group(roomKey).SendAsync("MemberListUpdated", roomSet.ToList());
 
       // Send current queue and playback state to caller
       var queue = await _trackQueueService.GetTrackQueueAsync(roomId);
@@ -97,20 +118,25 @@ namespace backend.Hubs
     public async Task LeaveRoom(int roomId)
     {
       string roomKey = roomId.ToString();
-      var userId = Context.UserIdentifier!;
+      var userId = Context.UserIdentifier;
+      if (string.IsNullOrEmpty(userId))
+      {
+        await Clients.Caller.SendAsync("Error", "UserIdentifier missing");
+        return;
+      }
 
       await Groups.RemoveFromGroupAsync(Context.ConnectionId, roomKey);
 
-      if (_roomUsers.TryGetValue(roomId, out var users))
+      if (_roomUsers.TryGetValue(roomId, out var users) && users != null)
       {
         users.Remove(userId);
 
-        // Update DB
+        // Update DB (best-effort)
         var room = await _dbContext.PartyRooms.FindAsync(roomId);
         if (room != null)
         {
+          room.Members = new List<string>(users);
           room.GuestsCount = users.Count;
-          room.Members = new List<string>(users); // sync members
           await _dbContext.SaveChangesAsync();
         }
 
@@ -308,12 +334,33 @@ namespace backend.Hubs
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
-      var userId = Context.UserIdentifier!;
-      foreach (var kv in _roomUsers)
+      var userId = Context.UserIdentifier;
+      if (string.IsNullOrEmpty(userId))
       {
-        if (kv.Value.Remove(userId))
+        await base.OnDisconnectedAsync(exception);
+        return;
+      }
+
+      // iterate snapshot of keys to avoid collection-modified issues and null-check values
+      foreach (var roomId in _roomUsers.Keys.ToList())
+      {
+        if (!_roomUsers.TryGetValue(roomId, out var users) || users == null)
+          continue;
+
+        if (users.Remove(userId))
         {
-          await Clients.Group(kv.Key.ToString()).SendAsync("MemberListUpdated", kv.Value.ToList());
+          // broadcast updated member list
+          await Clients.Group(roomId.ToString()).SendAsync("MemberListUpdated", users.ToList());
+
+          // persist change (best-effort)
+          var room = await _dbContext.PartyRooms.FindAsync(roomId);
+          if (room != null)
+          {
+            room.Members = new List<string>(users);
+            room.GuestsCount = users.Count;
+            await _dbContext.SaveChangesAsync();
+          }
+
           break;
         }
       }
