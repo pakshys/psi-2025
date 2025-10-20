@@ -46,7 +46,9 @@ public class PartyRoomController : ControllerBase
     {
         try
         {
-            var createdRoom = await _service.CreateAsync(name, capacity, isPrivate);
+            var createdRoom = await _service.CreateAsync(name: name,
+                                                        capacity: capacity,
+                                                        isPrivate: isPrivate);
 
             // Notify all clients about the created party room
             await _hubContext.Clients.All.SendAsync("PartyRoomCreated", createdRoom);
