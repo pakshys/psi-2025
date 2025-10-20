@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from "react";
+import "./Profile.css";
 
 export default function Profile() {
   const [profile, setProfile] = useState(null);
   const [file, setFile] = useState(null);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
   // Fetch user profile on page load
   useEffect(() => {
@@ -72,25 +75,39 @@ export default function Profile() {
   if (!profile) return <p>Loading profile...</p>;
 
   return (
-    <div>
-      <h1>{profile.displayName || "My Profile"}</h1>
+    <div className="profile-page">
+      <div className="profile-section">
+        <div className="profile-card">
+          <h1>{profile.displayName || "My Profile"}</h1>
+          <p className="profile-subtext">Manage your account details below.</p>
 
-      {/* Show current profile picture */}
-      {profile.profilePictureUrl ? (
-        <img
-          src={`https://localhost:7234/UserProfile/picture/${profile.profilePictureUrl}`}
-          alt="Profile"
-          width={200}
-        />
-      ) : (
-        <p>No profile picture yet.</p>
-      )}
+          <div className="profile-picture">
+            {profile.profilePictureUrl ? (
+              <img
+                src={`https://localhost:7234/UserProfile/picture/${profile.profilePictureUrl}`}
+                alt="Profile"
+              />
+            ) : (
+              <div className="no-picture">No profile picture yet</div>
+            )}
+          </div>
 
-      {/* Upload new picture */}
-      <div style={{ marginTop: "20px" }}>
-        <h3>Upload Profile Picture</h3>
-        <input type="file" accept=".png,.jpeg,.jpg" onChange={handleFileChange} />
-        <button onClick={handleUpload}>Upload</button>
+          <div className="upload-area">
+            <input type="file" accept=".png,.jpeg,.jpg" onChange={handleFileChange} />
+            <button onClick={handleUpload} className="upload-btn">
+              Upload Picture
+            </button>
+          </div>
+
+          {message && <p className="success-message">{message}</p>}
+          {error && <p className="error-message">{error}</p>}
+
+          <div className="back-link">
+            <a href="/">← Back to Home</a>
+          </div>
+        </div>
+
+        <div className="profile-placeholder"></div>
       </div>
     </div>
   );
