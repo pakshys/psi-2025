@@ -108,7 +108,7 @@ export default function Friends() {
             <div className="friends-actions">
                 <input
                     className="friends-input"
-                    placeholder="Įvesk draugo UserId (GUID)"
+                    placeholder="Enter your friends UserId (GUID)"
                     value={newUserId}
                     onChange={(e) => setNewUserId(e.target.value)}
                 />
@@ -125,7 +125,7 @@ export default function Friends() {
 
             <h2 className="friends-subtitle">Pending requests</h2>
             {pending.length === 0 ? (
-                <div className="friends-empty">Nėra laukiančių prašymų.</div>
+                <div className="friends-empty">There are no pending requests.</div>
             ) : (
                 <ul className="friends-list">
                     {pending.map((p) => (
@@ -159,7 +159,7 @@ export default function Friends() {
 
             <h2 className="friends-subtitle">Friends (accepted)</h2>
             {accepted.length === 0 ? (
-                <div className="friends-empty">Dar neturi draugų.</div>
+                <div className="friends-empty">There are currently 0 friends.</div>
             ) : (
                 <ul className="friends-list">
                     {accepted.map((f) => (
