@@ -1,15 +1,29 @@
 import { useNavigate, useParams } from "react-router-dom";
-import { useState, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import "./PartyRoomPage.css";
 import * as signalR from "@microsoft/signalr";
 
 const API_URL = "https://localhost:7234/partyroom";
+const PLACEHOLDER_VIDEO = "dQw4w9WgXcQ";
+
+// Extract YouTube ID from many common formats
+function extractYouTubeId(input) {
+  if (!input) return null;
+  const trimmed = input.trim();
+  // Try common URL forms first
+  const urlRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?.*v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+  const match = trimmed.match(urlRegex);
+  if (match) return match[1];
+  // Fallback if raw ID
+  const idRegex = /^[a-zA-Z0-9_-]{11}$/;
+  return idRegex.test(trimmed) ? trimmed : null;
+}
 
 export default function PartyRoomPage() {
   const { id: roomId } = useParams();
   const navigate = useNavigate();
 
-  // === ROOM STATE ===
+  // ROOM STATE
   const [room, setRoom] = useState({
     members: [],
     queue: [],
@@ -18,34 +32,38 @@ export default function PartyRoomPage() {
     isPrivate: false,
   });
 
-  // === AUTH STATE ===
+  // AUTH
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [username, setUsername] = useState("");
 
-  // === SIGNALR & PLAYER STATE ===
+  // SIGNALR & PLAYER
   const [connection, setConnection] = useState(null);
   const connectionRef = useRef(null);
-  const [player, setPlayer] = useState(null);
   const playerRef = useRef(null);
-  const [playerReady, setPlayerReady] = useState(false);
   const playerReadyRef = useRef(false);
-  const [bufferedEvents, setBufferedEvents] = useState([]);
-  const [pendingVideo, setPendingVideo] = useState(null);
-  const [isMuted, setIsMuted] = useState(true);
-  const PLACEHOLDER_VIDEO = "dQw4w9WgXcQ";
 
-  // === CHAT STATE ===
+  // UI state
+  const [playerReady, setPlayerReady] = useState(false); // used to drive UI
+  const [bufferedEvents, setBufferedEvents] = useState([]);
+  const pendingVideoRef = useRef(null);
+  const isReloadRef = useRef(false);
+  const lastEndedRef = useRef(0);
+
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
+  const [isMuted, setIsMuted] = useState(true);
 
-  // === 1. AUTH CHECK ===
+  // 1. AUTH CHECK
   useEffect(() => {
+    let mounted = true;
     const checkAuth = async () => {
       try {
         const res = await fetch("https://localhost:7234/Account/Me", { credentials: "include" });
-        if (!res.ok) navigate("/login");
-        else {
+        if (!res.ok) {
+          navigate("/login");
+        } else {
           const data = await res.json();
+          if (!mounted) return;
           setIsAuthenticated(true);
           setUsername(data.userName);
         }
@@ -55,58 +73,126 @@ export default function PartyRoomPage() {
       }
     };
     checkAuth();
+    return () => {
+      mounted = false;
+    };
   }, [navigate]);
 
-  // === 2. FETCH ROOM INFO ===
+  // 2. FETCH ROOM INFO
   useEffect(() => {
+    let abort = false;
     fetch(`${API_URL}/${roomId}`)
       .then((res) => res.json())
-      .then((data) => setRoom(data))
+      .then((data) => {
+        if (!abort) setRoom(data);
+      })
       .catch((err) => console.error("Error fetching room:", err));
+    return () => {
+      abort = true;
+    };
   }, [roomId]);
 
-  // === 3. BUFFERED EVENTS HANDLER ===
-  const flushEvents = () => {
-    if (!playerReadyRef.current || !playerRef.current) return;
-
-    if (pendingVideo?.videoId) {
-      playerRef.current.loadVideoById(pendingVideo.videoId);
-      if (pendingVideo.seek != null) playerRef.current.seekTo(pendingVideo.seek, true);
-      setPendingVideo(null);
+  // 3. Helper: load a video safely (cue then play to avoid race/stutter)
+  const loadVideoSafely = useCallback((videoId, startSeconds = 0, autoPlay = true) => {
+    const p = playerRef.current;
+    if (!p) {
+      // If player not ready, remember pending
+      pendingVideoRef.current = { videoId, seek: startSeconds, autoPlay };
+      return;
     }
 
-    bufferedEvents.forEach((event) => {
-      const p = playerRef.current;
-      switch (event.type) {
-        case "load":
-          if (event.time != null) p.loadVideoById(event.videoId, event.time);
-          else p.loadVideoById(event.videoId);
-          break;
-        case "seek": p.seekTo(event.time, true); break;
-        case "play": p.playVideo(); break;
-        case "pause": p.pauseVideo(); break; // always call
+    const currentId = p.getVideoData()?.video_id;
+    try {
+      if (currentId !== videoId) {
+        // Cue (preloads) and rely on onStateChange(CUED) to kick off play
+        pendingVideoRef.current = { videoId, seek: startSeconds, autoPlay };
+        // use cueVideoById to avoid trying to play while still buffering in an unstable state
+        if (typeof p.cueVideoById === "function") {
+          p.cueVideoById(videoId, startSeconds);
+          setTimeout(() => {
+            try {
+              p.playVideo();
+            } catch { }
+          }, 200); // 200ms delay -- without this video does not autoplay after skip
+        } else {
+          // fallback
+          p.loadVideoById(videoId, startSeconds);
+          setTimeout(() => {
+            try {
+              p.playVideo();
+            } catch { }
+          }, 200); // 200ms delay -- without this video does not autoplay after skip
+        }
+      } else {
+        // Same video: seek and play/pause as requested
+        const delta = Math.abs(p.getCurrentTime() - startSeconds);
+        if (delta > 2) p.seekTo(startSeconds, true);
+        if (autoPlay) p.playVideo();
+        else p.pauseVideo();
+        pendingVideoRef.current = null;
       }
-    });
+    } catch (err) {
+      // keep pending if an error occurs
+      pendingVideoRef.current = { videoId, seek: startSeconds, autoPlay };
+      console.error("loadVideoSafely failed:", err);
+    }
+  }, []);
 
-    setBufferedEvents([]);
-  };
+  // Flush buffered events when player becomes ready
+  const flushEvents = useCallback(() => {
+    const p = playerRef.current;
+    if (!playerReadyRef.current || !p) return;
+
+    const pending = pendingVideoRef.current;
+    if (pending?.videoId) {
+      loadVideoSafely(pending.videoId, pending.seek ?? 0, pending.autoPlay ?? true);
+    }
+
+    // Use current bufferedEvents snapshot then clear
+    setBufferedEvents((events) => {
+      if (!events || events.length === 0) return [];
+      events.forEach((event) => {
+        switch (event.type) {
+          case "load":
+            loadVideoSafely(event.videoId, event.time ?? 0, true);
+            break;
+          case "seek":
+            try {
+              if (p && typeof p.seekTo === "function") p.seekTo(event.time, true);
+            } catch {}
+            break;
+          case "play":
+            try {
+              if (p && typeof p.playVideo === "function") p.playVideo();
+            } catch {}
+            break;
+          case "pause":
+            try {
+              if (p && typeof p.pauseVideo === "function") p.pauseVideo();
+            } catch {}
+            break;
+          default:
+            break;
+        }
+      });
+      return [];
+    });
+  }, [loadVideoSafely]);
 
   useEffect(() => {
     flushEvents();
-  }, [playerReady, playerRef.current]);
-  
-  // === 4. SETUP SIGNALR CONNECTION ===
+  }, [playerReady, flushEvents]);
+
+  // 4. SETUP SIGNALR CONNECTION
   useEffect(() => {
     if (!isAuthenticated) return;
-
     const conn = new signalR.HubConnectionBuilder()
       .withUrl("https://localhost:7234/hubs/partyroom")
       .withAutomaticReconnect([0, 2000, 5000, 10000])
       .build();
 
     connectionRef.current = conn;
-    let isReload = false;
-
+    isReloadRef.current = false;
 
     const bufferOrPlay = (event) => {
       if (!playerReadyRef.current || !playerRef.current) {
@@ -114,10 +200,20 @@ export default function PartyRoomPage() {
       } else {
         const p = playerRef.current;
         switch (event.type) {
-          case "load": p.loadVideoById(event.videoId); break;
-          case "seek": p.seekTo(event.time, true); break;
-          case "play": p.playVideo(); break;
-          case "pause": p.pauseVideo(); break;
+          case "load":
+            loadVideoSafely(event.videoId, event.time ?? 0, true);
+            break;
+          case "seek":
+            p.seekTo(event.time, true);
+            break;
+          case "play":
+            p.playVideo();
+            break;
+          case "pause":
+            p.pauseVideo();
+            break;
+          default:
+            break;
         }
       }
     };
@@ -125,7 +221,7 @@ export default function PartyRoomPage() {
     const handleUnload = () => {
       const nav = performance.getEntriesByType("navigation")[0];
       if (nav && nav.type === "reload") {
-        isReload = true;
+        isReloadRef.current = true;
         return;
       }
       navigator.sendBeacon(`${API_URL}/${roomId}/leave`);
@@ -134,34 +230,26 @@ export default function PartyRoomPage() {
 
     conn.on("SyncTime", ({ videoId, time, isPlaying }) => {
       if (!playerReadyRef.current || !playerRef.current) {
-        setPendingVideo({ videoId, seek: time, play: isPlaying });
+        pendingVideoRef.current = { videoId, seek: time, autoPlay: isPlaying };
         return;
       }
       const p = playerRef.current;
-
-      if (videoId !== p.getVideoData().video_id) {
-        p.loadVideoById(videoId, time);
+      if (videoId !== p.getVideoData()?.video_id) {
+        loadVideoSafely(videoId, time ?? 0, isPlaying);
       } else {
-        const delta = Math.abs(p.getCurrentTime() - time);
-        if (delta > 0.2) p.seekTo(time, true);
-      }
-
-      // Always apply play/pause regardless of state
-      if (isPlaying) {
-        p.playVideo();
-      } else {
-        p.pauseVideo();
+        const delta = Math.abs(p.getCurrentTime() - (time ?? 0));
+        if (delta > 2) p.seekTo(time ?? 0, true);
+        if (isPlaying) p.playVideo();
+        else p.pauseVideo();
       }
     });
-
 
     conn.on("MemberListUpdated", (members) => setRoom((prev) => ({ ...prev, members })));
     conn.on("QueueUpdated", (_, queue) => setRoom((prev) => ({ ...prev, queue })));
 
-    // Robust chat handlers
-    conn.on("ReceiveMessage", (user, message) =>
-      setMessages((prev) => [...prev, { user, message }])
-    );
+
+    // Chat & votes
+    conn.on("ReceiveMessage", (user, message) => setMessages((prev) => [...prev, { user, message }]));
     conn.on("VoteRequested", (action) =>
       setMessages((prev) => [...prev, { system: true, message: `Vote started: ${action}?`, action }])
     );
@@ -179,27 +267,37 @@ export default function PartyRoomPage() {
         connectionRef.current &&
         playerRef.current &&
         playerReadyRef.current &&
-        playerRef.current.getPlayerState() === 1
+        playerRef.current.getPlayerState() === 1 // playing
       ) {
-        const currentTime = playerRef.current.getCurrentTime();
-        connectionRef.current.invoke("UpdateTime", roomId, currentTime).catch(() => { });
+        try {
+          const currentTime = playerRef.current.getCurrentTime();
+          connectionRef.current.invoke("UpdateTime", roomId, currentTime).catch(() => { });
+        } catch {
+          // ignore
+        }
       }
     }, 3000);
 
-    conn.start()
+    conn
+      .start()
       .then(async () => {
         console.log("Connected to SignalR hub");
-        await new Promise((resolve) => {
-          if (playerReadyRef.current) resolve();
-          else {
+        // Wait for player to become ready (if not already)
+        if (!playerReadyRef.current) {
+          await new Promise((resolve) => {
             const check = setInterval(() => {
-              if (playerReadyRef.current) { clearInterval(check); resolve(); }
+              if (playerReadyRef.current) {
+                clearInterval(check);
+                resolve();
+              }
             }, 100);
-          }
-        });
+          });
+        }
         await conn.invoke("JoinRoom", parseInt(roomId));
       })
-      .then(() => setConnection(conn))
+      .then(() => {
+        setConnection(conn);
+      })
       .catch((err) => console.error("SignalR connection failed:", err));
 
     conn.onreconnected(() => {
@@ -210,53 +308,118 @@ export default function PartyRoomPage() {
     return () => {
       clearInterval(syncInterval);
       window.removeEventListener("beforeunload", handleUnload);
-      if (!isReload) conn.invoke("LeaveRoom", parseInt(roomId)).catch(() => { });
+      if (!isReloadRef.current) conn.invoke("LeaveRoom", parseInt(roomId)).catch(() => { });
       conn.stop().catch(() => { });
     };
-  }, [roomId, isAuthenticated, playerReady, player]);
+  }, [roomId, isAuthenticated, loadVideoSafely]);
 
-  // === 5. LOAD YOUTUBE IFRAME API ===
+  // 5. LOAD YOUTUBE IFRAME API & INIT PLAYER
   useEffect(() => {
     if (!room) return;
 
-    function initPlayer() {
+    let scriptAdded = false;
+    const initPlayer = () => {
+      // If a player already exists, do not reinit
+      if (playerRef.current) return;
+
+      const firstVideoId = room.queue?.[0]?.TrackId || PLACEHOLDER_VIDEO;
       const ytPlayer = new window.YT.Player("player", {
         height: "360",
         width: "640",
-        videoId: room.queue?.[0]?.TrackId || PLACEHOLDER_VIDEO,
-        playerVars: { autoplay: 1, controls: 1, origin: window.location.origin, mute: 1 },
+        videoId: firstVideoId,
+        playerVars: { autoplay: 1, controls: 1, origin: window.location.origin, mute: 1, playsinline: 1},
         events: {
           onReady: (e) => {
-            setPlayer(e.target);
             playerRef.current = e.target;
             setPlayerReady(true);
             playerReadyRef.current = true;
-            e.target.playVideo();
+            // Keep initial mute state consistent
+            if (isMuted) e.target.mute();
+            else e.target.unMute();
+            // If there was a pending video set before player was ready, cue it now
+            if (pendingVideoRef.current?.videoId) {
+              const pvd = pendingVideoRef.current;
+              loadVideoSafely(pvd.videoId, pvd.seek ?? 0, pvd.autoPlay ?? true);
+            } else {
+              e.target.playVideo();
+            }
+          },
+          onStateChange: (event) => {
+            const p = playerRef.current;
+            if (!p || !connectionRef.current) return;
+            const time = p.getCurrentTime();
 
-            e.target.addEventListener("onStateChange", (event) => {
-              if (!connectionRef.current) return;
-              const time = e.target.getCurrentTime();
-              switch (event.data) {
-                case 1: connectionRef.current.invoke("Play", roomId, time).catch(() => { }); break;
-                case 2: connectionRef.current.invoke("Pause", roomId, time).catch(() => { }); break;
+            // If we transition to CUED (5), and we have a pendingVideo flagged for autoplay, start playback.
+            if (typeof window !== "undefined" && window.YT && event.data === window.YT.PlayerState.CUED) {
+              const pending = pendingVideoRef.current;
+              if (pending?.autoPlay) {
+                try {
+                  // If start position provided, seek just to be safe
+                  if (pending.seek != null) {
+                    p.seekTo(pending.seek, true);
+                  }
+                  p.playVideo();
+                } catch {}
+                // clear pending
+                pendingVideoRef.current = null;
               }
-            });
+            }
+
+            // YouTube states: 1 = playing, 2 = paused, 0 = ended
+            if (event.data === window.YT.PlayerState.PLAYING) {
+              connectionRef.current.invoke("Play", roomId, time).catch(() => { });
+            } else if (event.data === window.YT.PlayerState.PAUSED) {
+              connectionRef.current.invoke("Pause", roomId, time).catch(() => { });
+            } else if (event.data === window.YT.PlayerState.ENDED) {
+              // Debounce multiple ENDED events
+              const now = Date.now();
+              if (now - lastEndedRef.current < 2000) return;
+              lastEndedRef.current = now;
+
+              // Ask server to advance the queue and start the next track
+              try {
+                if (connectionRef.current && connectionRef.current.state === signalR.HubConnectionState.Connected) {
+                  connectionRef.current.invoke("SkipTrack", parseInt(roomId)).catch(() => { });
+                }
+              } catch {}
+            }
           },
         },
       });
+    };
+
+    if (window.YT && window.YT.Player) {
+      initPlayer();
+    } else {
+      // Prevent double-inserting the script
+      if (!document.getElementById("youtube-iframe-api")) {
+        const tag = document.createElement("script");
+        tag.id = "youtube-iframe-api";
+        tag.src = "https://www.youtube.com/iframe_api";
+        scriptAdded = true;
+        window.onYouTubeIframeAPIReady = initPlayer;
+        document.body.appendChild(tag);
+      } else {
+        // If script exists but API not ready yet, ensure global ready hook is set
+        window.onYouTubeIframeAPIReady = initPlayer;
+      }
     }
 
-    if (window.YT && window.YT.Player) initPlayer();
-    else {
-      const tag = document.createElement("script");
-      tag.src = "https://www.youtube.com/iframe_api";
-      window.onYouTubeIframeAPIReady = initPlayer;
-      document.body.appendChild(tag);
-    }
-  }, [room, roomId]);
+    return () => {
+      if (scriptAdded && document.getElementById("youtube-iframe-api")) {
+      }
+      try {
+        if (window.onYouTubeIframeAPIReady && window.onYouTubeIframeAPIReady === initPlayer) {
+          window.onYouTubeIframeAPIReady = undefined;
+        }
+      } catch {
+        // ignore
+      }
+    };
+  }, [room, roomId, isMuted, loadVideoSafely]);
 
-  // === 6. HANDLERS ===
-  const handleLeaveRoom = async () => {
+  // HANDLERS
+  const handleLeaveRoom = useCallback(async () => {
     try {
       if (connectionRef.current && connectionRef.current.state === signalR.HubConnectionState.Connected) {
         await connectionRef.current.invoke("LeaveRoom", parseInt(roomId));
@@ -268,9 +431,9 @@ export default function PartyRoomPage() {
       console.error("Failed to leave room:", err);
       alert("Failed to leave room.");
     }
-  };
+  }, [navigate, roomId]);
 
-  const handleSendMessage = async () => {
+  const handleSendMessage = useCallback(async () => {
     if (!newMessage.trim()) return;
     try {
       if (!connection || connection.state !== signalR.HubConnectionState.Connected) {
@@ -283,16 +446,13 @@ export default function PartyRoomPage() {
       console.error("SendMessage failed:", err);
       alert("Failed to send message.");
     }
-  };
+  }, [connection, newMessage, roomId, username]);
 
-
-  // === 6. Render UI ===
+  // UI
   if (!room) return <p>Loading room...</p>;
 
-  //Layout
   return (
     <div className="partyroom-page">
-      {/* === Top bar === */}
       <div className="partyroom-header">
         <h2>{room.name}</h2>
         <div>
@@ -306,9 +466,7 @@ export default function PartyRoomPage() {
         </div>
       </div>
 
-      {/* === Main content row === */}
       <div className="partyroom-main">
-        {/* === Queue (Left) === */}
         <div className="queue-panel">
           <h3>Queue</h3>
           <div className="queue-list">
@@ -336,11 +494,8 @@ export default function PartyRoomPage() {
           </div>
         </div>
 
-        {/* === Video & Controls (Center) === */}
         <div className="partyroom-content">
-          <p className="partyroom-info">
-            {room.isPrivate ? "Private" : "Public"} room
-          </p>
+          <p className="partyroom-info">{room.isPrivate ? "Private" : "Public"} room</p>
 
           <div id="player-wrapper">
             <div id="player"></div>
@@ -352,12 +507,10 @@ export default function PartyRoomPage() {
               onClick={async () => {
                 let input = prompt("Enter YouTube link or ID:");
                 if (!input) return;
-
-                const match = input.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})(?:[?&]|$)/);
-                const videoId = match ? match[1] : input.trim();
+                const videoId = extractYouTubeId(input);
                 if (!videoId) return;
 
-                if (!connection || connection.state !== "Connected") {
+                if (!connection || connection.state !== signalR.HubConnectionState.Connected) {
                   alert("Not connected to server yet. Try again in a moment.");
                   return;
                 }
@@ -375,19 +528,32 @@ export default function PartyRoomPage() {
 
             <button
               onClick={() => {
-                if (!connection || connection.state !== "Connected") return;
-                connection.invoke("RequestVote", roomId.toString(), "Skip");
+                if (!connection || connection.state !== signalR.HubConnectionState.Connected) return;
+                connection.invoke("RequestVote", roomId.toString(), "Skip").catch(() => { });
               }}
             >
               Vote Skip
             </button>
 
-            <button onClick={() => connection.invoke("RequestVote", roomId.toString(), "Play")}>Vote Play</button>
-            <button onClick={() => connection.invoke("RequestVote", roomId.toString(), "Pause")}>Vote Pause</button>
+            <button
+              onClick={() => {
+                if (!connection || connection.state !== signalR.HubConnectionState.Connected) return;
+                connection.invoke("RequestVote", roomId.toString(), "Play").catch(() => { });
+              }}
+            >
+              Vote Play
+            </button>
+            <button
+              onClick={() => {
+                if (!connection || connection.state !== signalR.HubConnectionState.Connected) return;
+                connection.invoke("RequestVote", roomId.toString(), "Pause").catch(() => { });
+              }}
+            >
+              Vote Pause
+            </button>
           </div>
         </div>
 
-        {/* === Chat (Right) === */}
         <div className="chat-panel">
           <div className="chat-messages">
             {messages.map((m, i) => (
@@ -400,24 +566,14 @@ export default function PartyRoomPage() {
                         {" "}
                         <button
                           onClick={() =>
-                            connection.invoke(
-                              "CastVote",
-                              roomId.toString(),
-                              username,
-                              true
-                            )
+                            connection?.invoke("CastVote", roomId.toString(), username, true).catch(() => { })
                           }
                         >
                           👍
                         </button>
                         <button
                           onClick={() =>
-                            connection.invoke(
-                              "CastVote",
-                              roomId.toString(),
-                              username,
-                              false
-                            )
+                            connection?.invoke("CastVote", roomId.toString(), username, false).catch(() => { })
                           }
                         >
                           👎
@@ -449,7 +605,6 @@ export default function PartyRoomPage() {
             <button onClick={handleSendMessage}>Send</button>
           </div>
 
-          {/* === Volume Slider === */}
           <div className="volume-control">
             <label>Volume:</label>
             <input
@@ -458,26 +613,26 @@ export default function PartyRoomPage() {
               max="100"
               defaultValue="50"
               onChange={(e) => {
-                if (player && playerReady) player.setVolume(parseInt(e.target.value));
+                const p = playerRef.current;
+                if (p && playerReadyRef.current) p.setVolume(parseInt(e.target.value, 10));
               }}
             />
 
-            {player && playerReady && (
-              <button
-                onClick={() => {
-                  if (!player) return;
-                  if (isMuted) {
-                    player.unMute();
-                    setIsMuted(false);
-                  } else {
-                    player.mute();
-                    setIsMuted(true);
-                  }
-                }}
-              >
-                {isMuted ? "Unmute" : "Mute"}
-              </button>
-            )}
+            <button
+              onClick={() => {
+                const p = playerRef.current;
+                if (!p) return;
+                if (isMuted) {
+                  p.unMute();
+                  setIsMuted(false);
+                } else {
+                  p.mute();
+                  setIsMuted(true);
+                }
+              }}
+            >
+              {isMuted ? "Unmute" : "Mute"}
+            </button>
           </div>
         </div>
       </div>
