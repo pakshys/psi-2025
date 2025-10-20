@@ -60,7 +60,8 @@ namespace backend.Hubs
 
           try
           {
-            await Clients.Group(otherRoomId.ToString()).SendAsync("MemberListUpdated", members.ToList());
+            var filteredMembers = members.Where(m => !string.IsNullOrWhiteSpace(m)).ToList();
+            await Clients.Group(otherRoomId.ToString()).SendAsync("MemberListUpdated", filteredMembers);
           }
           catch { /* ignore send failures */ }
 
@@ -68,8 +69,9 @@ namespace backend.Hubs
           var oldRoom = await _dbContext.PartyRooms.FindAsync(otherRoomId);
           if (oldRoom != null)
           {
-            oldRoom.Members = new List<string>(members);
-            oldRoom.GuestsCount = members.Count;
+            var filteredMembers = members.Where(m => !string.IsNullOrWhiteSpace(m)).ToList();
+            oldRoom.Members = filteredMembers;
+            oldRoom.GuestsCount = filteredMembers.Count;
             await _dbContext.SaveChangesAsync();
           }
         }
@@ -82,7 +84,9 @@ namespace backend.Hubs
         _roomUsers[roomId] = roomSet;
       }
 
-      roomSet.Add(userId);
+      // Guard: don't add null/empty identifiers
+      if (!string.IsNullOrWhiteSpace(userId))
+        roomSet.Add(userId);
 
       await Groups.AddToGroupAsync(Context.ConnectionId, roomKey);
 
@@ -90,13 +94,15 @@ namespace backend.Hubs
       var room = await _dbContext.PartyRooms.FindAsync(roomId);
       if (room != null)
       {
-        room.Members = new List<string>(roomSet);
-        room.GuestsCount = roomSet.Count;
+        var filteredMembers = roomSet.Where(m => !string.IsNullOrWhiteSpace(m)).ToList();
+        room.Members = filteredMembers;
+        room.GuestsCount = filteredMembers.Count;
         await _dbContext.SaveChangesAsync();
       }
 
-      // Broadcast updated members
-      await Clients.Group(roomKey).SendAsync("MemberListUpdated", roomSet.ToList());
+      // Broadcast updated members (filter out null/empty)
+      var broadcastMembers = roomSet.Where(m => !string.IsNullOrWhiteSpace(m)).ToList();
+      await Clients.Group(roomKey).SendAsync("MemberListUpdated", broadcastMembers);
 
       // Send current queue and playback state to caller
       var queue = await _trackQueueService.GetTrackQueueAsync(roomId);
@@ -135,12 +141,14 @@ namespace backend.Hubs
         var room = await _dbContext.PartyRooms.FindAsync(roomId);
         if (room != null)
         {
-          room.Members = new List<string>(users);
-          room.GuestsCount = users.Count;
+          var filtered = users.Where(m => !string.IsNullOrWhiteSpace(m)).ToList();
+          room.Members = filtered;
+          room.GuestsCount = filtered.Count;
           await _dbContext.SaveChangesAsync();
         }
 
-        await Clients.Group(roomKey).SendAsync("MemberListUpdated", users.ToList());
+        var broadcast = users.Where(m => !string.IsNullOrWhiteSpace(m)).ToList();
+        await Clients.Group(roomKey).SendAsync("MemberListUpdated", broadcast);
       }
 
       await Clients.Group(roomKey).SendAsync("UserLeft", roomId, userId);
@@ -349,15 +357,16 @@ namespace backend.Hubs
 
         if (users.Remove(userId))
         {
-          // broadcast updated member list
-          await Clients.Group(roomId.ToString()).SendAsync("MemberListUpdated", users.ToList());
+          // broadcast updated member list (filter null/empty)
+          var filtered = users.Where(m => !string.IsNullOrWhiteSpace(m)).ToList();
+          await Clients.Group(roomId.ToString()).SendAsync("MemberListUpdated", filtered);
 
           // persist change (best-effort)
           var room = await _dbContext.PartyRooms.FindAsync(roomId);
           if (room != null)
           {
-            room.Members = new List<string>(users);
-            room.GuestsCount = users.Count;
+            room.Members = filtered;
+            room.GuestsCount = filtered.Count;
             await _dbContext.SaveChangesAsync();
           }
 
