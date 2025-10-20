@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from "react";
-import "./friends.css";
+import "./Friends.css";
 
 const API_URL = "https://localhost:7234/Friendship";
 
