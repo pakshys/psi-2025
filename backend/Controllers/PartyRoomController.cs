@@ -46,7 +46,9 @@ public class PartyRoomController : ControllerBase
     {
         try
         {
-            var createdRoom = await _partyRoomService.CreateAsync(name, capacity, isPrivate);
+            var createdRoom = await _partyRoomService.CreateAsync(name: name,
+                                                        capacity: capacity,
+                                                        isPrivate: isPrivate);
 
         // Count the creator as the first member
         createdRoom.GuestsCount = 1;

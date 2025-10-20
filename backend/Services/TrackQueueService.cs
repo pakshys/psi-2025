@@ -1,6 +1,7 @@
 using backend.Database;
+using backend.Extensions;
 using backend.Models;
-using Dtos;
+using backend.Dtos;
 using Microsoft.EntityFrameworkCore;
 using Google.Apis.Services;
 using Google.Apis.YouTube.v3;

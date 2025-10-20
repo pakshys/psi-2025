@@ -21,23 +21,23 @@ namespace backend.Controllers
         }
 
         [HttpGet("list")]
-        public async Task<ActionResult<List<Friendship>>> GetMyFriends()
+        public async Task<ActionResult<IEnumerable<FriendSummary>>> List()
         {
             var user = await _userManager.GetUserAsync(User);
-            if (user == null)
-                return Unauthorized();
+            if (user is null) return Unauthorized();
 
-            return await _service.GetFriendsAsync(user.Id);
+            var data = await _service.GetSummariesAsync(user.Id);
+            return Ok(data);
         }
 
         [HttpGet("pending")]
-        public async Task<ActionResult<List<Friendship>>> GetPending()
+        public async Task<ActionResult<IEnumerable<FriendSummary>>> Pending()
         {
             var user = await _userManager.GetUserAsync(User);
-            if (user == null)
-                return Unauthorized();
+            if (user is null) return Unauthorized();
 
-            return await _service.GetPendingAsync(user.Id);
+            var data = await _service.GetPendingSummariesAsync(user.Id);
+            return Ok(data);
         }
 
         [HttpPost("add/{targetUserId}")]
