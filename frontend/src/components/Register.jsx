@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import "./Register.css";
 
 export default function Register() {
     const [formData, setFormData] = useState({
@@ -69,9 +70,9 @@ export default function Register() {
     };
 
     return (
-        <div className="login-page">
-            <div className="login-form-section">
-                <div className="login-form">
+        <div className="register-page">
+            <div className="register-form-section">
+                <div className="register-form">
                     <h1>Create Account</h1>
                     <p>Join us and start your journey today!</p>
 
@@ -79,7 +80,7 @@ export default function Register() {
                         <input
                             type="text"
                             name="userName"
-                            className="login-input"
+                            className="register-input"
                             placeholder="Username"
                             value={formData.userName}
                             onChange={handleChange}
@@ -88,7 +89,7 @@ export default function Register() {
                         <input
                             type="email"
                             name="email"
-                            className="login-input"
+                            className="register-input"
                             placeholder="Email"
                             value={formData.email}
                             onChange={handleChange}
@@ -97,7 +98,7 @@ export default function Register() {
                         <input
                             type="password"
                             name="password"
-                            className="login-input"
+                            className="register-input"
                             placeholder="Password"
                             value={formData.password}
                             onChange={handleChange}
@@ -106,7 +107,7 @@ export default function Register() {
                         <input
                             type="password"
                             name="confirmPassword"
-                            className="login-input"
+                            className="register-input"
                             placeholder="Confirm Password"
                             value={formData.confirmPassword}
                             onChange={handleChange}
@@ -116,13 +117,14 @@ export default function Register() {
                         {error && <p className="error-message">{error}</p>}
                         {message && <p className="success-message">{message}</p>}
 
-                        <button type="submit" className="login-btn">Register</button>
+                        <button type="submit" className="register-btn">Register</button>
                     </form>
 
                     <p className="account-link">
                         Already have an account? <a href="/login">Sign In</a>
                     </p>
                 </div>
+
                 <div className="placeholder"></div>
             </div>
         </div>
