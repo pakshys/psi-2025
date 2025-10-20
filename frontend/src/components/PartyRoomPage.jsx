@@ -91,8 +91,10 @@ export default function PartyRoomPage() {
     setBufferedEvents([]);
   };
 
-  useEffect(() => flushEvents(), [playerReady, player, bufferedEvents, pendingVideo]);
-
+  useEffect(() => {
+    flushEvents();
+  }, [playerReady, playerRef.current]);
+  
   // === 4. SETUP SIGNALR CONNECTION ===
   useEffect(() => {
     if (!isAuthenticated) return;
