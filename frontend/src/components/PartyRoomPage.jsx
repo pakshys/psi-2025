@@ -84,7 +84,7 @@ export default function PartyRoomPage() {
           break;
         case "seek": p.seekTo(event.time, true); break;
         case "play": p.playVideo(); break;
-        case "pause": p.pauseVideo(); break;
+        case "pause": p.pauseVideo(); break; // always call
       }
     });
 
@@ -144,9 +144,14 @@ export default function PartyRoomPage() {
         if (delta > 0.2) p.seekTo(time, true);
       }
 
-      if (isPlaying && p.getPlayerState() !== 1) p.playVideo();
-      if (!isPlaying && p.getPlayerState() === 1) p.pauseVideo();
+      // Always apply play/pause regardless of state
+      if (isPlaying) {
+        p.playVideo();
+      } else {
+        p.pauseVideo();
+      }
     });
+
 
     conn.on("MemberListUpdated", (members) => setRoom((prev) => ({ ...prev, members })));
     conn.on("QueueUpdated", (_, queue) => setRoom((prev) => ({ ...prev, queue })));
