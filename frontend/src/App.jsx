@@ -3,6 +3,7 @@ import './App.css'
 import Login from "./components/Login";
 import PartyRoomList from "./components/PartyRoomList";
 import PartyRoomPage from "./components/PartyRoomPage";
+import Friends from "./components/Friends";
 import githubMark from "./assets/github-mark.svg";
 
 function HomePage() {
@@ -17,6 +18,9 @@ function HomePage() {
         <p>Connect with friends and enjoy music together.</p>
         <button className="get-started-btn" onClick={() => navigate("/partyrooms")}>
           Get Started
+        </button>
+        <button className="get-started-btn" onClick={() => navigate("/friends")}>
+          Go to Friends
         </button>
       </div>
 
@@ -36,7 +40,8 @@ function App() {
       <Route path = "/" element = {<HomePage/>} />
       <Route path="/login" element={<Login />} />
       <Route path = "/partyrooms" element = {<PartyRoomList/>} />
-      <Route path = "/room/:id" element = {<PartyRoomPage/>} />
+      <Route path="/room/:id" element={<PartyRoomPage />} />
+      <Route path="/friends" element={<Friends />} />
     </Routes>
   );
 }
