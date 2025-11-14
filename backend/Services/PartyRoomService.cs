@@ -1,3 +1,4 @@
+using backend.Exceptions;
 using backend.Database;
 using backend.Models;
 using Microsoft.EntityFrameworkCore;
@@ -51,7 +52,7 @@ public class PartyRoomService
   {
     var room = await GetByIdAsync(id);
     if (room == null)
-      throw new KeyNotFoundException("Party room not found.");
+      throw new NotFoundException("Party room not found.");
 
     var currentCount = room.Members?.Count ?? 0;
     if (currentCount >= room.Capacity)
@@ -63,7 +64,7 @@ public class PartyRoomService
   {
     var room = await GetByIdAsync(id);
     if (room == null)
-      throw new KeyNotFoundException("Party room not found.");
+      throw new NotFoundException("Party room not found.");
 
     var currentCount = room.Members?.Count ?? 0;
     if (currentCount <= 0)
@@ -75,7 +76,7 @@ public class PartyRoomService
   {
     var existingRoom = await GetByIdAsync(updatedRoom.Id);
     if (existingRoom == null)
-      throw new KeyNotFoundException("Party room not found.");
+      throw new NotFoundException("Party room not found.");
 
     if (string.IsNullOrWhiteSpace(updatedRoom.Name))
       throw new ArgumentException("Party room name cannot be empty.");
@@ -97,7 +98,7 @@ public class PartyRoomService
   {
     var room = await GetByIdAsync(id);
     if (room == null)
-      throw new KeyNotFoundException("Party room not found.");
+      throw new NotFoundException("Party room not found.");
 
     _context.PartyRooms.Remove(room);
     await _context.SaveChangesAsync();

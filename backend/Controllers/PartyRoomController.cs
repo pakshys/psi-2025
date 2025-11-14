@@ -1,8 +1,7 @@
-using backend.Hubs;
+using backend.Exceptions;
 using backend.Models;
 using backend.Services;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.SignalR;
 
 namespace backend.Controllers;
 
@@ -72,7 +71,7 @@ public class PartyRoomController : ControllerBase
 
             return Ok(partyRoom);
         }
-        catch (KeyNotFoundException)
+        catch (NotFoundException)
         {
             return NotFound();
         }
@@ -93,7 +92,7 @@ public class PartyRoomController : ControllerBase
 
             return Ok(partyRoom);
         }
-        catch (KeyNotFoundException)
+        catch (NotFoundException)
         {
             return NotFound();
         }
@@ -115,7 +114,7 @@ public class PartyRoomController : ControllerBase
             await _partyRoomService.UpdateAsync(partyRoom);
             return NoContent();
         }
-        catch (KeyNotFoundException)
+        catch (NotFoundException)
         {
             return NotFound();
         }
@@ -136,7 +135,7 @@ public class PartyRoomController : ControllerBase
 
             return NoContent();
         }
-        catch (KeyNotFoundException)
+        catch (NotFoundException)
         {
             return NotFound();
         }
