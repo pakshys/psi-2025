@@ -47,9 +47,6 @@ public class PartyRoomService
   }
 
   // Join a room
-  // NOTE: this service does not manage which user is a member (no userId parameter).
-  // It only enforces capacity based on the Members list length. The Hub should be
-  // responsible for adding/removing user ids to `PartyRoom.Members` and persisting that.
   public async Task JoinAsync(int id)
   {
     var room = await GetByIdAsync(id);
@@ -59,14 +56,9 @@ public class PartyRoomService
     var currentCount = room.Members?.Count ?? 0;
     if (currentCount >= room.Capacity)
       throw new InvalidOperationException("Party room is full.");
-
-    // Do not modify GuestsCount here — treat Members list as the source of truth.
-    // The Hub (or caller) should add the user id into room.Members and persist that.
   }
 
   // Leave a room
-  // Similar to JoinAsync: we validate but do not mutate GuestsCount. The caller/hub
-  // should remove the user id from the Members list and persist.
   public async Task LeaveAsync(int id)
   {
     var room = await GetByIdAsync(id);
@@ -76,8 +68,6 @@ public class PartyRoomService
     var currentCount = room.Members?.Count ?? 0;
     if (currentCount <= 0)
       throw new InvalidOperationException("Party room is already empty.");
-
-    // Do not modify GuestsCount here.
   }
 
   // Update a room
