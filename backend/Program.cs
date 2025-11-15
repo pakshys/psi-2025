@@ -61,6 +61,9 @@ builder.Services.AddScoped<FriendshipService>();
 // RegisterTrackQueueService
 builder.Services.AddScoped<TrackQueueService>();
 
+builder.Services.AddSingleton<RoomStateService>();
+builder.Services.AddSingleton<VoteService>();
+
 // Register SignalR for real-time functionalities
 builder.Services.AddSignalR(options =>
 {
