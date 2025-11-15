@@ -19,9 +19,7 @@ namespace backend.Hubs
     }
 
     // === Playback state tracking ===
-    private record RoomPlaybackState(string VideoId, double CurrentTime, bool IsPlaying, DateTime LastUpdatedUtc);
     private static readonly Dictionary<string, RoomPlaybackState> _currentRoomStates = new();
-    private static readonly Dictionary<string, Dictionary<string, string>> _votes = new();
     private static readonly Dictionary<string, RoomVote> _activeVotes = new();
 
     // === Active room connections ===
@@ -271,13 +269,6 @@ namespace backend.Hubs
           await Pause(roomId);
           break;
       }
-    }
-
-    private class RoomVote
-    {
-      public string Action { get; set; } = "";
-      public Dictionary<string, bool> Votes { get; set; } = new();
-      public DateTime StartTime { get; set; } = DateTime.UtcNow;
     }
 
     private async Task CheckVoteTimeouts()
