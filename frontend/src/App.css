@@ -47,20 +47,17 @@
 }
 
 /* Optional top-right "Log In" link */
-.login-link {
-  position: absolute;
-  top: 2rem;
-  right: 3rem;
+.login-link, .register-link {
   color: #91ffc1;
   font-size: 1.1rem;
   text-decoration: none;
   border: 2px solid #91ffc1;
-  padding: 0.5rem 1rem;
+  padding: 0.8rem 1rem;
   border-radius: 10px;
   transition: all 0.3s ease;
 }
 
-.login-link:hover {
+.login-link:hover, .register-link:hover {
   background: #91ffc1;
   color: #121212;
 }
@@ -86,4 +83,13 @@
 
 .support img:hover {
   filter: invert(100%);
+}
+
+.top-right {
+    position: absolute;
+    top: 2rem;
+    right: 3rem;
+    display: flex;
+    gap: 1rem;
+    z-index: 1000;
 }

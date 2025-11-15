@@ -1,0 +1,58 @@
+.profile-button {
+    background: transparent;        /* see-through */
+    color: #91ffc1;
+    border: 2px solid #91ffc1;
+    padding: 0.8rem 1rem;
+    border-radius: 10px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+
+    /* remove outlines and shadows on focus/active */
+    outline: none;
+    box-shadow: none;
+}
+
+.profile-button:hover {
+    background: #91ffc1;
+    color: #121212;
+}
+
+.profile-button:focus,
+.profile-button:active {
+    outline: none;
+    box-shadow: none;
+    background: #91ffc1; /* maintain hover color on focus/click */
+    color: #121212;
+}
+
+
+/* dropdown styling */
+.dropdown {
+    position: absolute;
+    top: 110%;
+    right: 0;
+    background: transparent;
+    border: 1px solid #91ffc1;
+    border-radius: 8px;
+    min-width: 150px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    z-index: 1000;
+}
+
+.dropdown-item {
+    width: 100%;
+    padding: 0.6rem 1rem;
+    background: transparent; /* see-through */
+    border: none;
+    text-align: left;
+    color: #91ffc1;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background 0.2s ease;
+}
+
+    .dropdown-item:hover {
+     background: #91ffc1;
+     color: #121212;
+    }

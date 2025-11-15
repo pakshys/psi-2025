@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.SignalR;
 using backend.Extensions;
 using backend.Database;
 using backend.Models;
@@ -18,7 +19,7 @@ builder.Services.AddCors(options =>
             .WithOrigins("http://localhost:5173") // React server origin
             .AllowAnyHeader()
             .AllowAnyMethod()
-            .AllowCredentials());
+            .AllowCredentials()); // for SignalR !
 });
 
 builder.Services.AddControllers();
@@ -27,22 +28,26 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // Configure authentication and authorization
-builder.Services.AddIdentity<User, IdentityRole>()
+builder.Services.AddIdentity<User, IdentityRole>(options =>
+    {
+        options.SignIn.RequireConfirmedAccount = false;
+    })
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultTokenProviders();
 
 builder.Services.AddAuthorization();
 
-builder.Services.AddIdentityCore<User>(options =>
-{
-    options.SignIn.RequireConfirmedAccount = false;
-})
-.AddEntityFrameworkStores<ApplicationDbContext>()
-.AddSignInManager()
-.AddApiEndpoints();
+//builder.Services.AddIdentityCore<User>(options =>
+//{
+//    options.SignIn.RequireConfirmedAccount = false;
+//})
+//.AddEntityFrameworkStores<ApplicationDbContext>()
+//.AddSignInManager()
+//.AddApiEndpoints();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("Database")));
+
 
 // Register PartyRoomService for dependency injection
 builder.Services.AddScoped<PartyRoomService>();
@@ -53,8 +58,22 @@ builder.Services.AddScoped<UserProfileService>();
 // Register FriendshipService
 builder.Services.AddScoped<FriendshipService>();
 
+// RegisterTrackQueueService
+builder.Services.AddScoped<TrackQueueService>();
+
+builder.Services.AddSingleton<RoomStateService>();
+builder.Services.AddSingleton<VoteService>();
+
 // Register SignalR for real-time functionalities
-builder.Services.AddSignalR();
+builder.Services.AddSignalR(options =>
+{
+  options.EnableDetailedErrors = true;
+}).AddHubOptions<PartyRoomHub>(options =>
+{
+  options.ClientTimeoutInterval = TimeSpan.FromMinutes(10);
+});
+
+builder.Services.AddSingleton<IUserIdProvider, NameUserIdProvider>();
 
 var app = builder.Build();
 
@@ -63,15 +82,15 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
-
+  
     app.ApplyMigrations();  
 }
 
-app.UseHttpsRedirection();
-
-app.UseAuthorization();
+//app.UseHttpsRedirection(); //(BAD HANDSHAKE HTTP <-> HTTPS issue)
 
 app.UseCors("AllowFrontend");
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 

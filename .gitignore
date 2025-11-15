@@ -20,6 +20,7 @@ obj/
 *.suo
 *.userosscache
 *.sln.docstates
+Uploads/*
 
 # IDE / Editor settings
 .vs/

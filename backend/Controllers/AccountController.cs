@@ -45,6 +45,9 @@ namespace backend.Controllers
                 // Create an empty user profile right after successful registration
                 await _profileService.CreateOrUpdateAsync(user.Id, model.UserName, null, null);
 
+                // Login the user after registration
+                await _signInManager.SignInAsync(user, isPersistent: false);
+
                 return Ok(new { Message = "Registration successful and profile created." });
             }
 

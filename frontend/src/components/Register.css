@@ -1,0 +1,123 @@
+/* Register.css */
+.register-page {
+  display: flex;
+  height: 100vh;
+  background: radial-gradient(circle at right bottom, rgba(217, 35, 159, 0.4) 0%, #121212 70%);
+  color: #fff;
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+}
+
+/* Left form section */
+.register-form-section {
+  position: relative;
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.register-form {
+  position: relative;
+  z-index: 2;
+  width: 400px;
+  display: flex;
+  flex-direction: column;
+}
+
+.register-form h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #ff2dbb; /* magenta main accent */
+  margin-bottom: 0.3rem;
+}
+
+.register-form p {
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 2rem;
+}
+
+.register-input {
+  width: 100%;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  background-color: #1f1f1f;
+  border: 1px solid #333;
+  border-radius: 12px;
+  color: #fff;
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+
+.register-input:focus {
+  outline: none;
+  border-color: #ff2dbb;
+  box-shadow: 0 0 8px rgba(255, 45, 187, 0.5);
+}
+
+.register-btn {
+  width: 100%;
+  background: #ff2dbb;
+  border: none;
+  padding: 1rem;
+  border-radius: 12px;
+  color: #fff;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.register-btn:hover {
+  background: #ff4fc5;
+  box-shadow: 0 0 20px rgba(255, 45, 187, 0.7);
+}
+
+.error-message,
+.success-message {
+  margin-bottom: 0.5rem;
+  word-wrap: break-word; /* ensures long text wraps */
+}
+
+.error-message {
+  color: #ff5555;
+  font-size: 0.9rem;
+}
+
+.success-message {
+  color: #91ffc1;
+  font-size: 0.9rem;
+}
+
+.account-link {
+  margin-top: 1rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.account-link a {
+  color: #ff2dbb;
+  text-decoration: none;
+}
+
+.account-link a:hover {
+  text-decoration: underline;
+}
+
+/* Right background placeholder */
+.placeholder {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 620px;  /* slightly bigger to allow for longer messages */
+  min-height: 580px; /* allow growth */
+  background: linear-gradient(135deg, rgba(217, 35, 159, 0.15), rgba(145, 255, 193, 0.1));
+  border-radius: 24px;
+  box-shadow: 0 0 80px rgba(217, 35, 159, 0.25);
+  z-index: 0;
+  filter: blur(3px);
+  padding: 40px 20px; /* optional, adds space around the form */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
