@@ -1,4 +1,4 @@
-using backend.Models;
+﻿using backend.Models;
 using backend.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -8,7 +8,6 @@ namespace backend.Controllers
 {
     [ApiController]
     [Route("[controller]")]
-    [Authorize]
     public class UserProfileController : ControllerBase
     {
         private readonly UserProfileService _service;
@@ -21,26 +20,25 @@ namespace backend.Controllers
         }
 
         [HttpGet("{userId}")]
-        public async Task<ActionResult<UserProfile>> GetProfile(string userId)
+        public async Task<ActionResult<OperationResult<UserProfile>>> GetUserProfileById(string userId)
         {
             var profile = await _service.GetByUserIdAsync(userId);
+
             if (profile == null)
-                return NotFound();
-            return profile;
+                return NotFound(OperationResult<UserProfile>.Failure("Profile not found"));
+
+            var result = OperationResult<UserProfile>.FromInput(profile, x => x);
+            return Ok(result);
         }
 
         [HttpGet("me")]
-        public async Task<ActionResult<UserProfile>> GetMyProfile()
+        public async Task<ActionResult<OperationResult<UserProfile>>> GetCurrentUser()
         {
             var user = await _userManager.GetUserAsync(User);
             if (user == null)
-                return Unauthorized();
+                return Unauthorized(OperationResult<UserProfile>.Failure("User not logged in"));
 
-            var profile = await _service.GetByUserIdAsync(user.Id);
-            if (profile == null)
-                return NotFound();
-
-            return profile;
+            return await GetUserProfileById(user.Id);
         }
 
         [HttpPost("update")]
@@ -53,6 +51,8 @@ namespace backend.Controllers
             var updated = await _service.CreateOrUpdateAsync(user.Id, model.DisplayName, model.Bio, model.ProfilePictureUrl);
             return Ok(updated);
         }
+
+        [ApiExplorerSettings(IgnoreApi = true)]
 
         [HttpPost("upload-picture")]
         public async Task<ActionResult<UserProfile>> UploadProfilePicture([FromForm] IFormFile profile)
