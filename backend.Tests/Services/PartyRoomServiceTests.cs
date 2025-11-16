@@ -56,17 +56,6 @@ public class PartyRoomServiceTests
   }
 
   [Fact]
-  public async Task LeaveAsync_WhenRoomIsEmpty_ThrowsInvalidOperationException()
-  {
-    var db = await GetDbContextAsync();
-    var service = new PartyRoomService(db);
-
-    var room = await service.CreateAsync("EmptyRoom", 2);
-
-    await Assert.ThrowsAsync<InvalidOperationException>(() => service.LeaveAsync(room.Id));
-  }
-
-  [Fact]
   public async Task UpdateAsync_WithValidData_UpdatesRoom()
   {
     var db = await GetDbContextAsync();

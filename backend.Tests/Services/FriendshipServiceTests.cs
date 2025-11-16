@@ -8,7 +8,7 @@ using Xunit;
 using System.Collections.Generic;
 using System.Linq;
 
-public class FriendshipServiceFullCoverageTests
+public class FriendshipServiceTests
 {
   private async Task<ApplicationDbContext> GetDbContextAsync()
   {
@@ -196,7 +196,7 @@ public class FriendshipServiceFullCoverageTests
     Assert.Equal(2, summaries.Count);
 
     var nullNameSummary = summaries.First(s => s.OtherUserId == "user3");
-    Assert.Equal("user3", nullNameSummary.OtherUserName); // hits ?? fallback
+    Assert.Equal("user3", nullNameSummary.OtherUserName);
   }
 
   [Fact]

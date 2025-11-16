@@ -7,6 +7,7 @@ using backend.Models;
 using backend.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Moq;
 using Xunit;
 
 public class UserProfileServiceTests
@@ -106,5 +107,59 @@ public class UserProfileServiceTests
     var all = await service.GetAllAsync();
 
     Assert.Equal(2, all.Count);
+  }
+
+  [Fact]
+  public async Task UploadProfilePictureAsync_WhenFileIsNull_Throws()
+  {
+    var db = await GetDbContextAsync();
+    var service = new UserProfileService(db);
+
+    await Assert.ThrowsAsync<ArgumentException>(
+      () => service.UploadProfilePictureAsync(null!)
+    );
+  }
+
+  [Fact]
+  public async Task UploadProfilePictureAsync_SavesFileAndReturnsName()
+  {
+    var db = await GetDbContextAsync();
+    var service = new UserProfileService(db);
+
+    var fileMock = new Mock<IFormFile>();
+    var content = new MemoryStream(new byte[] { 1, 2, 3 });
+    fileMock.Setup(f => f.OpenReadStream()).Returns(content);
+    fileMock.Setup(f => f.CopyToAsync(It.IsAny<Stream>(), default)).Returns(Task.CompletedTask);
+    fileMock.Setup(f => f.FileName).Returns("test.png");
+    fileMock.Setup(f => f.Length).Returns(content.Length);
+
+    var result = await service.UploadProfilePictureAsync(fileMock.Object);
+
+    Assert.EndsWith("test.png", result);
+  }
+
+  [Fact]
+  public async Task GetProfilePictureStream_WhenFileNotFound_Throws()
+  {
+    var db = await GetDbContextAsync();
+    var service = new UserProfileService(db);
+
+    Assert.Throws<FileNotFoundException>(() => service.GetProfilePictureStream("missing.png"));
+  }
+
+  [Fact]
+  public async Task GetProfilePictureStream_ReturnsStream()
+  {
+    var db = await GetDbContextAsync();
+    var service = new UserProfileService(db);
+
+    var uploadDir = Path.Combine(Directory.GetCurrentDirectory(), "Uploads");
+    Directory.CreateDirectory(uploadDir);
+
+    var filePath = Path.Combine(uploadDir, "test.png");
+    File.WriteAllBytes(filePath, new byte[] { 1, 2, 3 });
+
+    var stream = service.GetProfilePictureStream("test.png");
+    Assert.NotNull(stream);
   }
 }
