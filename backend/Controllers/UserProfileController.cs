@@ -54,6 +54,7 @@ namespace backend.Controllers
             return Ok(updated);
         }
 
+        [ApiExplorerSettings(IgnoreApi = true)]
         [HttpPost("upload-picture")]
         public async Task<ActionResult<UserProfile>> UploadProfilePicture([FromForm] IFormFile profile)
         {

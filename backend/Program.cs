@@ -98,3 +98,5 @@ app.MapControllers();
 app.MapHub<PartyRoomHub>("/hubs/partyroom");
 
 app.Run();
+
+public partial class Program { }
