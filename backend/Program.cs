@@ -44,11 +44,11 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // Configure authentication and authorization
-builder.Services.AddIdentity(options =>
+builder.Services.AddIdentity<User, IdentityRole>(options =>
     {
         options.SignIn.RequireConfirmedAccount = false;
     })
-    .AddEntityFrameworkStores()
+    .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultTokenProviders();
 
 builder.Services.ConfigureApplicationCookie(options =>
@@ -62,34 +62,34 @@ builder.Services.ConfigureApplicationCookie(options =>
 
 builder.Services.AddAuthorization();
 
-builder.Services.AddDbContext(options =>
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("Database")));
 
 // Register PartyRoomService for dependency injection
-builder.Services.AddScoped();
+builder.Services.AddScoped<PartyRoomService>();
 
 // Register UserProfileService
-builder.Services.AddScoped();
+builder.Services.AddScoped<UserProfileService>();
 
 // Register FriendshipService
-builder.Services.AddScoped();
+builder.Services.AddScoped<FriendshipService>();
 
 // RegisterTrackQueueService
-builder.Services.AddScoped();
+builder.Services.AddScoped<TrackQueueService>();
 
-builder.Services.AddSingleton();
-builder.Services.AddSingleton();
+builder.Services.AddSingleton<RoomStateService>();
+builder.Services.AddSingleton<VoteService>();
 
 // Register SignalR for real-time functionalities
 builder.Services.AddSignalR(options =>
 {
   options.EnableDetailedErrors = true;
-}).AddHubOptions(options =>
+}).AddHubOptions<PartyRoomHub>(options =>
 {
   options.ClientTimeoutInterval = TimeSpan.FromMinutes(10);
 });
 
-builder.Services.AddSingleton();
+builder.Services.AddSingleton<IUserIdProvider, NameUserIdProvider>();
 
 var app = builder.Build();
 
@@ -103,9 +103,9 @@ if (app.Environment.IsDevelopment())
 }
 
 // Add exception handling middleware (MUST be early in pipeline)
-app.UseMiddleware();
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 
-//app.UseHttpsRedirection(); //(BAD HANDSHAKE HTTP  HTTPS issue)
+//app.UseHttpsRedirection(); //(BAD HANDSHAKE HTTP <-> HTTPS issue)
 
 app.UseCors("AllowFrontend");
 app.UseAuthentication();
@@ -114,7 +114,7 @@ app.UseAuthorization();
 app.MapControllers();
 
 // Map SignalR PartyRoomHub
-app.MapHub("/hubs/partyroom");
+app.MapHub<PartyRoomHub>("/hubs/partyroom");
 
 try
 {
