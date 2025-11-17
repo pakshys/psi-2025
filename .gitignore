@@ -22,6 +22,9 @@ obj/
 *.sln.docstates
 Uploads/*
 
+# Dotnet / Backend.Tests
+coverage.json
+
 # IDE / Editor settings
 .vs/
 .vscode/*
