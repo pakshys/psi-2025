@@ -2,9 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using backend.Database;
+using backend.Exceptions;
 using backend.Models;
 using backend.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 public class PartyRoomServiceTests
@@ -23,7 +25,7 @@ public class PartyRoomServiceTests
   public async Task CreateAsync_WithValidData_CreatesRoom()
   {
     var db = await GetDbContextAsync();
-    var service = new PartyRoomService(db);
+    var service = new PartyRoomService(db, NullLogger<PartyRoomService>.Instance);
 
     var room = await service.CreateAsync("Party", 5);
 
@@ -37,7 +39,7 @@ public class PartyRoomServiceTests
   public async Task CreateAsync_WithEmptyName_ThrowsArgumentException()
   {
     var db = await GetDbContextAsync();
-    var service = new PartyRoomService(db);
+    var service = new PartyRoomService(db, NullLogger<PartyRoomService>.Instance);
 
     await Assert.ThrowsAsync<ArgumentException>(() => service.CreateAsync(""));
   }
@@ -46,7 +48,7 @@ public class PartyRoomServiceTests
   public async Task JoinAsync_WhenRoomIsFull_ThrowsInvalidOperationException()
   {
     var db = await GetDbContextAsync();
-    var service = new PartyRoomService(db);
+    var service = new PartyRoomService(db, NullLogger<PartyRoomService>.Instance);
 
     var room = await service.CreateAsync("FullRoom", 1);
     room.Members = new List<string> { "User1" };
@@ -59,7 +61,7 @@ public class PartyRoomServiceTests
   public async Task UpdateAsync_WithValidData_UpdatesRoom()
   {
     var db = await GetDbContextAsync();
-    var service = new PartyRoomService(db);
+    var service = new PartyRoomService(db, NullLogger<PartyRoomService>.Instance);
 
     var room = await service.CreateAsync("OldName", 5);
     room.Members = new List<string> { "User1" };
@@ -75,15 +77,14 @@ public class PartyRoomServiceTests
   }
 
   [Fact]
-  public async Task DeleteAsync_WhenRoomExists_DeletesRoom()
+  public async Task DeleteAsync_WhenRoomExists_NotFoundException()
   {
     var db = await GetDbContextAsync();
-    var service = new PartyRoomService(db);
+    var service = new PartyRoomService(db, NullLogger<PartyRoomService>.Instance);
 
     var room = await service.CreateAsync("ToDelete", 5);
     await service.DeleteAsync(room.Id);
 
-    var deleted = await service.GetByIdAsync(room.Id);
-    Assert.Null(deleted);
+    await Assert.ThrowsAsync<NotFoundException>(() => service.GetByIdAsync(room.Id));
   }
 }

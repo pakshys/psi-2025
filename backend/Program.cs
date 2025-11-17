@@ -6,8 +6,24 @@ using backend.Database;
 using backend.Models;
 using backend.Services;
 using backend.Hubs;
+using backend.Middleware;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure Serilog
+Log.Logger = new LoggerConfiguration()
+    .ReadFrom.Configuration(builder.Configuration)
+    .Enrich.FromLogContext()
+    .WriteTo.Console()
+    .WriteTo.File(
+        path: "logs/app-.log",
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 30,
+        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
+    .CreateLogger();
+
+builder.Host.UseSerilog();
 
 // Add services to the container.
 
@@ -46,17 +62,8 @@ builder.Services.ConfigureApplicationCookie(options =>
 
 builder.Services.AddAuthorization();
 
-//builder.Services.AddIdentityCore<User>(options =>
-//{
-//    options.SignIn.RequireConfirmedAccount = false;
-//})
-//.AddEntityFrameworkStores<ApplicationDbContext>()
-//.AddSignInManager()
-//.AddApiEndpoints();
-
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("Database")));
-
 
 // Register PartyRoomService for dependency injection
 builder.Services.AddScoped<PartyRoomService>();
@@ -95,6 +102,9 @@ if (app.Environment.IsDevelopment())
     app.ApplyMigrations();  
 }
 
+// Add exception handling middleware (MUST be early in pipeline)
+app.UseMiddleware<ExceptionHandlingMiddleware>();
+
 //app.UseHttpsRedirection(); //(BAD HANDSHAKE HTTP <-> HTTPS issue)
 
 app.UseCors("AllowFrontend");
@@ -106,6 +116,18 @@ app.MapControllers();
 // Map SignalR PartyRoomHub
 app.MapHub<PartyRoomHub>("/hubs/partyroom");
 
-app.Run();
+try
+{
+    Log.Information("Starting web application");
+    app.Run();
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Application terminated unexpectedly");
+}
+finally
+{
+    Log.CloseAndFlush();
+}
 
 public partial class Program { }
