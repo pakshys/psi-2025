@@ -12,7 +12,7 @@ using System.Linq;
 namespace backend.Tests.Factories
 {
   public class TestFactory<TProgram> : WebApplicationFactory<TProgram>
-      where TProgram : class
+      where TProgram : class, new()
   {
     private readonly string _dbName;
     private readonly string _environment;
