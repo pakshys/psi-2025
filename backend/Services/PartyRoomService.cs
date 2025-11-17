@@ -8,23 +8,23 @@ namespace backend.Services;
 public class PartyRoomService
 {
   private readonly ApplicationDbContext _context;
-  private readonly ILogger _logger;
+  private readonly ILogger<PartyRoomService> _logger;
 
-  public PartyRoomService(ApplicationDbContext context)
+  public PartyRoomService(ApplicationDbContext context, ILogger<PartyRoomService> logger)
   {
     _context = context;
     _logger = logger;
   }
 
   // Get all rooms
-  public async Task<List> GetAllAsync()
+  public async Task<List<PartyRoom>> GetAllAsync()
   {
     _logger.LogInformation("Fetching all party rooms");
     return await _context.PartyRooms.ToListAsync();
   }
 
   // Get room by ID - throws NotFoundException
-  public async Task GetByIdAsync(int id)
+  public async Task<PartyRoom> GetByIdAsync(int id)
   {
     _logger.LogInformation("Fetching party room with ID: {RoomId}", id);
     
@@ -40,7 +40,7 @@ public class PartyRoomService
   }
 
   // Create a new room
-  public async Task CreateAsync(string name, int capacity = 10, bool isPrivate = false)
+  public async Task<PartyRoom> CreateAsync(string name, int capacity = 10, bool isPrivate = false)
   {
     if (string.IsNullOrWhiteSpace(name))
       throw new ArgumentException("Party room name cannot be empty.");
