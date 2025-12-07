@@ -473,17 +473,14 @@ export default function PartyRoomPage() {
             {room.queue && room.queue.length > 0 ? (
               <ul>
                 {room.queue.map((track, i) => {
-                  const isPlaceholder = track.TrackId === "placeholder" || !track.TrackId;
+                  const isPlaceholder = track.trackId === "placeholder" || !track.trackId;
                   const title = isPlaceholder
-                    ? "No video loaded"
-                    : track.Title || track.title || track.TrackId || "Unknown";
-                  const creator = isPlaceholder
-                    ? ""
-                    : track.Creator || track.creator || track.ChannelTitle || "Unknown";
+                    ? "No video in queue"
+                    : track.title || track.trackId || "Unknown";
 
                   return (
                     <li key={i}>
-                      {title} {creator && `— ${creator}`}
+                      {title}
                     </li>
                   );
                 })}
@@ -505,10 +502,14 @@ export default function PartyRoomPage() {
           <div className="partyroom-buttons">
             <button
               onClick={async () => {
-                let input = prompt("Enter YouTube link or ID:");
+                const input = prompt("Enter YouTube link or ID:");
                 if (!input) return;
+
                 const videoId = extractYouTubeId(input);
-                if (!videoId) return;
+                if (!videoId) {
+                  alert("Invalid YouTube link or ID");
+                  return;
+                }
 
                 if (!connection || connection.state !== signalR.HubConnectionState.Connected) {
                   alert("Not connected to server yet. Try again in a moment.");
@@ -516,10 +517,12 @@ export default function PartyRoomPage() {
                 }
 
                 try {
+                  // Call the backend method that handles first-track replacement and normal enqueue
                   await connection.invoke("EnqueueTrack", parseInt(roomId), videoId);
+                  console.log("Track added successfully");
                 } catch (err) {
-                  console.error("Enqueue/Load failed:", err);
-                  alert("Failed to enqueue or load the track.");
+                  console.error("Failed to add track:", err);
+                  alert("Failed to add track.");
                 }
               }}
             >

@@ -10,10 +10,12 @@ namespace backend.Controllers;
 public class PartyRoomController : ControllerBase
 {
     private readonly PartyRoomService _partyRoomService;
+    private readonly TrackQueueService _trackQueueService;
 
-    public PartyRoomController(PartyRoomService service)
+    public PartyRoomController(PartyRoomService service, TrackQueueService trackQueueService)
     {
         _partyRoomService = service;
+        _trackQueueService = trackQueueService;
     }
 
     // GET all action
@@ -30,8 +32,18 @@ public class PartyRoomController : ControllerBase
         // Service will throw NotFoundException if not found
         // Middleware will catch it and return proper 404
         var partyRoom = await _partyRoomService.GetByIdAsync(id);
-        return partyRoom;
-    }
+        var queue = await _trackQueueService.GetTrackQueueAsync(id);
+
+        return Ok(new
+        {
+          partyRoom.Id,
+          partyRoom.Name,
+          partyRoom.Capacity,
+          partyRoom.GuestsCount,
+          partyRoom.IsPrivate,
+          Queue = queue
+        });
+  }
 
     // POST create action
     [HttpPost]
