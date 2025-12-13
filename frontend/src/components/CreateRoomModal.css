@@ -1,0 +1,125 @@
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(18, 18, 18, 0.7); /* slightly darker overlay */
+  backdrop-filter: blur(6px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.modal-form-section {
+  position: relative;
+  width: 480px;
+  height: 380px; /* smaller modal */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-form {
+  position: relative;
+  z-index: 2;
+  width: 90%;
+  padding: 2rem;
+  color: #fff;
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+}
+
+.modal-form h1 {
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: #91ffc1;
+  margin-bottom: 1.5rem;
+}
+
+/* Smaller inputs */
+.input-box {
+  width: 95%;
+  padding: 0.7rem; /* shorter vertically */
+  margin-bottom: 1rem;
+  background-color: #1f1f1f;
+  border: 1px solid #333;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 1rem;
+}
+
+.input-box:focus {
+  outline: none;
+  border-color: #ff2dbb;
+  box-shadow: 0 0 8px rgba(255, 45, 187, 0.5);
+}
+
+.dropdown-box {
+  width: 101%;
+  padding: 0.7rem; /* shorter vertically */
+  margin-bottom: 1rem;
+  background-color: #1f1f1f;
+  border: 1px solid #333;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 1rem;
+}
+
+.dropdown-box:focus {
+  outline: none;
+  border-color: #ff2dbb;
+  box-shadow: 0 0 8px rgba(255, 45, 187, 0.5);
+}
+
+.create-btn {
+  width: 100%;
+  background: #ff2dbb;
+  border: none;
+  padding: 0.9rem; /* shorter vertically */
+  border-radius: 8px;
+  color: white;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 0.5rem;
+}
+
+.create-btn:hover {
+  background: #ff4fc5;
+  box-shadow: 0 0 20px rgba(255, 45, 187, 0.7);
+}
+
+.cancel-btn {
+  width: 100%;
+  background: #333;
+  border: none;
+  padding: 0.9rem; /* shorter vertically */
+  border-radius: 8px;
+  color: white;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 0.5rem;
+}
+
+.cancel-btn:hover {
+  background: #3c3c3c;
+}
+
+.placeholder {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 480px;
+  height: 380px;
+  background: linear-gradient(
+    135deg,
+    rgba(72, 149, 239, 0.25),
+    rgba(255, 45, 187, 0.4)
+  );
+  border-radius: 24px;
+  box-shadow: 0 0 60px rgba(72, 149, 239, 0.35);
+  z-index: 0;
+  filter: blur(2px);
+}
