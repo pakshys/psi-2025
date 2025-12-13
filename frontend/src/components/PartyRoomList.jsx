@@ -1,13 +1,16 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./PartyRoomList.css";
+import CreateRoomModal from "./CreateRoomModal";
 
 const API_URL = "https://localhost:7234/partyroom";
 
 function PartyRoomList() {
   const [rooms, setRooms] = useState([]);
   const [search, setSearch] = useState("");
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const navigate = useNavigate();
+  
 
   // === Fetch room list ===
   useEffect(() => {
@@ -33,20 +36,27 @@ function PartyRoomList() {
       .catch((e) => alert(e.message));
   };
 
-  const handleCreateRoom = () => {
-    const name = prompt("Enter room name:");
-    if (!name) return;
+  const handleCreateRoom = ({ name, capacity, isPrivate }) => {
+    if (!name.trim()) {
+      alert("Room name is required");
+      return;
+    }
 
-    fetch(`${API_URL}?name=${encodeURIComponent(name)}&capacity=10&isPrivate=false`, {
-      method: "POST",
-    })
+    fetch(
+      `${API_URL}?name=${encodeURIComponent(name)}&capacity=${capacity}&isPrivate=${isPrivate}`,
+      { method: "POST" }
+    )
       .then((r) => {
         if (!r.ok) throw new Error("Failed to create room");
         return r.json();
       })
-      .then((newRoom) => navigate(`/room/${newRoom.id}`))
+      .then((newRoom) => {
+        setShowCreateModal(false);
+        navigate(`/room/${newRoom.id}`);
+      })
       .catch((err) => alert(err.message));
   };
+
 
 
   // === Search Filter ===
@@ -60,7 +70,7 @@ function PartyRoomList() {
       <div className="partyrooms-section">
         <h2>Party Rooms</h2>
         <div className="buttons">
-          <button className="main-button" onClick={handleCreateRoom}>
+          <button className="main-button" onClick={ () => setShowCreateModal(true) }>
             Create Room
           </button>
         </div>
@@ -104,6 +114,11 @@ function PartyRoomList() {
           ))}
         </div>
       </div>
+      <CreateRoomModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onCreate={handleCreateRoom}
+      />
     </div>
   );
 }
