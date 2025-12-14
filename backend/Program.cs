@@ -6,6 +6,7 @@ using backend.Database;
 using backend.Models;
 using backend.Services;
 using backend.Hubs;
+using Microsoft.AspNetCore.HttpOverrides;
 using backend.Middleware;
 using Serilog;
 
@@ -44,12 +45,12 @@ builder.Services.ConfigureApplicationCookie(options =>
 // Adding CORS services
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowFrontend",
-        policy => policy
-            .WithOrigins("https://cotunes.online", "https://www.cotunes.online") // React server origin
-            .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials()); // for SignalR !
+  options.AddPolicy("AllowFrontend",
+      policy => policy
+          .WithOrigins("https://cotunes.online", "https://www.cotunes.online") // React server origin
+          .AllowAnyHeader()
+          .AllowAnyMethod()
+          .AllowCredentials()); // for SignalR !
 });
 
 builder.Services.AddControllers();
@@ -59,20 +60,11 @@ builder.Services.AddSwaggerGen();
 
 // Configure authentication and authorization
 builder.Services.AddIdentity<User, IdentityRole>(options =>
-    {
-        options.SignIn.RequireConfirmedAccount = false;
-    })
+{
+  options.SignIn.RequireConfirmedAccount = false;
+})
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultTokenProviders();
-
-builder.Services.ConfigureApplicationCookie(options =>
-{
-    options.Events.OnRedirectToLogin = ctx =>
-    {
-        ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
-        return Task.CompletedTask;
-    };
-});
 
 builder.Services.AddAuthorization();
 
@@ -113,10 +105,10 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-  
-    app.ApplyMigrations();  
+  app.UseSwagger();
+  app.UseSwaggerUI();
+
+  app.ApplyMigrations();
 }
 
 // Add exception handling middleware (MUST be early in pipeline)
@@ -146,16 +138,16 @@ app.MapHub<PartyRoomHub>("/hubs/partyroom");
 
 try
 {
-    Log.Information("Starting web application");
-    app.Run();
+  Log.Information("Starting web application");
+  app.Run();
 }
 catch (Exception ex)
 {
-    Log.Fatal(ex, "Application terminated unexpectedly");
+  Log.Fatal(ex, "Application terminated unexpectedly");
 }
 finally
 {
-    Log.CloseAndFlush();
+  Log.CloseAndFlush();
 }
 
 public partial class Program { }

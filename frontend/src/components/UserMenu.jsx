@@ -24,7 +24,7 @@ export default function UserMenu() {
   }, []);
 
   const handleLogout = async () => {
-    await fetch(`${API_URL}/Account/Logout"` {
+    await fetch(`${API_URL}/Account/Logout`, {
       method: "POST",
       credentials: "include"
     });

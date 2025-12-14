@@ -85,7 +85,7 @@ export default function PartyRoomPage() {
   // 2. FETCH ROOM INFO
   useEffect(() => {
     let abort = false;
-    fetch(`${API_URL}/${roomId}`)
+    fetch(`${API_URL}/PartyRoom/${roomId}`)
       .then((res) => res.json())
       .then((data) => {
         if (!abort) setRoom(data);
