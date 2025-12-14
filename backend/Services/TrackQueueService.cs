@@ -5,6 +5,7 @@ using backend.Dtos;
 using Microsoft.EntityFrameworkCore;
 using Google.Apis.Services;
 using Google.Apis.YouTube.v3;
+using Microsoft.Extensions.Options;
 
 
 namespace backend.Services;
@@ -12,10 +13,12 @@ namespace backend.Services;
 public class TrackQueueService : ITrackQueueService
 {
     private readonly ApplicationDbContext _dbContext;
+    private readonly string _apiKey;
 
-    public TrackQueueService(ApplicationDbContext dbContext)
+    public TrackQueueService(ApplicationDbContext dbContext, IOptions<YouTubeSettings> settings)
     {
         _dbContext = dbContext;
+        _apiKey = settings.Value.ApiKey;
     }
 
     public async Task EnqueueAsync(int roomId, string trackId)
@@ -85,7 +88,7 @@ public class TrackQueueService : ITrackQueueService
         // Initialize YouTube API
         var youtubeService = new YouTubeService(new BaseClientService.Initializer()
         {
-            ApiKey = "YOUR_YOUTUBE_API_KEY",
+            ApiKey = _apiKey,
             ApplicationName = "psi-2025"
         });
 

@@ -44,6 +44,27 @@ public class ExceptionHandlingMiddleware
                 notFoundEx.Message, 
                 context.Request.Path);
         }
+        else if (exception is UnauthorizedAccessException unauthorizedEx)
+        {
+            statusCode = HttpStatusCode.Unauthorized;
+            message = unauthorizedEx.Message;
+
+            _logger.LogWarning(unauthorizedEx,
+            "Unauthorized access: {Message}. Path: {Path}",
+            unauthorizedEx.Message,
+            context.Request.Path);
+        }
+        else if (exception is InvalidOperationException invalidOpEx)
+        {
+            statusCode = HttpStatusCode.Conflict; // 409 is correct here
+            message = invalidOpEx.Message;
+
+            _logger.LogWarning(invalidOpEx,
+                "Invalid operation: {Message}. Path: {Path}",
+                invalidOpEx.Message,
+                context.Request.Path);
+        }
+
         else
         {
             // Log other exceptions as errors

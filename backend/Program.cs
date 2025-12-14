@@ -80,6 +80,9 @@ builder.Services.AddScoped<ITrackQueueService, TrackQueueService>();
 builder.Services.AddSingleton<IRoomStateService, RoomStateService>();
 builder.Services.AddSingleton<IVoteService, VoteService>();
 
+// Bind the YouTube settings
+builder.Services.Configure<YouTubeSettings>(builder.Configuration.GetSection("YouTubeApi"));
+
 // Register SignalR for real-time functionalities
 builder.Services.AddSignalR(options =>
 {

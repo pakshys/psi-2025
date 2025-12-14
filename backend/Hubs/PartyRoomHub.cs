@@ -135,42 +135,49 @@ namespace backend.Hubs
     // === Queue Management ===
     public async Task EnqueueTrack(int roomId, string trackId)
     {
-      await _trackQueueService.EnqueueAsync(roomId, trackId);
-      var queue = await _trackQueueService.GetTrackQueueAsync(roomId);
-
-      await Clients.Group(roomId.ToString()).SendAsync("QueueUpdated", roomId, queue);
-
       string roomKey = roomId.ToString();
-
-      bool shouldAutoPlay = false;
       var now = DateTime.UtcNow;
 
-      if (!_roomStateService.HasPlayback(roomKey) ||
-          !_roomStateService.GetPlayback(roomKey)!.IsPlaying)
-      {
-        var first = queue.FirstOrDefault();
-        if (first != null &&
-            (!_roomStateService.HasPlayback(roomKey) ||
-             _roomStateService.GetPlayback(roomKey)!.VideoId != first.TrackId))
-        {
-          _roomStateService.SetPlayback(roomKey,
-            new RoomPlaybackState(first.TrackId, 0, false, now));
+      var playback = _roomStateService.HasPlayback(roomKey)
+        ? _roomStateService.GetPlayback(roomKey)
+        : null;
 
-          shouldAutoPlay = true;            
-        }
-      }
+      bool isPlaceholder = playback == null || playback.VideoId == "PLACEHOLDER"; // Placeholder ID
 
-      if (shouldAutoPlay)
+      if (isPlaceholder)
       {
-        var state = _roomStateService.GetPlayback(roomKey)! with
-        {
-          IsPlaying = true,
-          LastUpdatedUtc = DateTime.UtcNow
-        };
+        // Replace placeholder and start playing immediately
+        var state = new RoomPlaybackState(trackId, 0, true, now);
         _roomStateService.SetPlayback(roomKey, state);
 
-        await Clients.Group(roomKey).SendAsync("LoadVideo", state.VideoId);
+        // Notify clients
+        await Clients.Group(roomKey).SendAsync("LoadVideo", trackId);
         await Clients.Group(roomKey).SendAsync("Play");
+
+        // Queue remains empty
+        var queue = await _trackQueueService.GetTrackQueueAsync(roomId);
+        await Clients.Group(roomId.ToString()).SendAsync("QueueUpdated", roomId, queue);
+      }
+      else
+      {
+        // Normal enqueue
+        await _trackQueueService.EnqueueAsync(roomId, trackId);
+        var queue = await _trackQueueService.GetTrackQueueAsync(roomId);
+        await Clients.Group(roomId.ToString()).SendAsync("QueueUpdated", roomId, queue);
+
+        // Auto-play if nothing is currently playing
+        if (!playback.IsPlaying)
+        {
+          var first = queue.FirstOrDefault();
+          if (first != null)
+          {
+            var state = new RoomPlaybackState(first.TrackId, 0, true, now);
+            _roomStateService.SetPlayback(roomKey, state);
+
+            await Clients.Group(roomKey).SendAsync("LoadVideo", state.VideoId);
+            await Clients.Group(roomKey).SendAsync("Play");
+          }
+        }
       }
     }
 

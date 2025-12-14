@@ -10,10 +10,12 @@ namespace backend.Controllers;
 public class PartyRoomController : ControllerBase
 {
     private readonly IPartyRoomService _partyRoomService;
+    private readonly ITrackQueueService _trackQueueService;
 
-    public PartyRoomController(IPartyRoomService service)
+    public PartyRoomController(IPartyRoomService service, ITrackQueueService trackQueueService)
     {
         _partyRoomService = service;
+        _trackQueueService = trackQueueService;
     }
 
     // GET all action
@@ -30,19 +32,30 @@ public class PartyRoomController : ControllerBase
         // Service will throw NotFoundException if not found
         // Middleware will catch it and return proper 404
         var partyRoom = await _partyRoomService.GetByIdAsync(id);
-        return partyRoom;
-    }
+        var queue = await _trackQueueService.GetTrackQueueAsync(id);
+
+        return Ok(new
+        {
+          partyRoom.Id,
+          partyRoom.Name,
+          partyRoom.Capacity,
+          partyRoom.GuestsCount,
+          partyRoom.IsPrivate,
+          Queue = queue
+        });
+  }
 
     // POST create action
     [HttpPost]
-    public async Task<IActionResult> Create([FromQuery] string name,
-                                            [FromQuery] int capacity = 10,
-                                            [FromQuery] bool isPrivate = false)
+    public async Task<IActionResult> Create([FromBody] CreatePartyRoomDto dto)
     {
         // Let middleware handle ArgumentException
-        var createdRoom = await _partyRoomService.CreateAsync(name: name,
-                                                    capacity: capacity,
-                                                    isPrivate: isPrivate);
+        var createdRoom = await _partyRoomService.CreateAsync(
+            dto.Name,
+            dto.Capacity,
+            dto.IsPrivate,
+            dto.Password
+        );
         
         // Count the creator as the first member
         createdRoom.GuestsCount = 1;
@@ -53,10 +66,10 @@ public class PartyRoomController : ControllerBase
 
     // POST join action
     [HttpPost("{id}/join")]
-    public async Task<IActionResult> Join(int id)
+    public async Task<IActionResult> Join(int id, [FromBody] JoinPartyRoomDto? dto)
     {
         // Let middleware handle exceptions
-        await _partyRoomService.JoinAsync(id);
+        await _partyRoomService.JoinAsync(id, dto?.Password);
         var partyRoom = await _partyRoomService.GetByIdAsync(id);
         return Ok(partyRoom);
     }

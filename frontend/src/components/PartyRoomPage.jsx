@@ -4,7 +4,7 @@ import "./PartyRoomPage.css";
 import * as signalR from "@microsoft/signalr";
 
 const API_URL = "https://localhost:7234/partyroom";
-const PLACEHOLDER_VIDEO = "dQw4w9WgXcQ";
+const PLACEHOLDER_VIDEO = "cX9BSDR2vZ4";
 
 // Extract YouTube ID from many common formats
 function extractYouTubeId(input) {
@@ -48,6 +48,10 @@ export default function PartyRoomPage() {
   const pendingVideoRef = useRef(null);
   const isReloadRef = useRef(false);
   const lastEndedRef = useRef(0);
+
+  //Scoll state
+  const chatRef = useRef(null);
+  const shouldAutoScrollRef = useRef(true);
 
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
@@ -419,6 +423,17 @@ export default function PartyRoomPage() {
   }, [room, roomId, isMuted, loadVideoSafely]);
 
   // HANDLERS
+  const handleChatScroll = () => {
+    const el = chatRef.current;
+    if (!el) return;
+
+    const threshold = 50; // px from bottom
+    const atBottom =
+      el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
+
+    shouldAutoScrollRef.current = atBottom;
+  };
+
   const handleLeaveRoom = useCallback(async () => {
     try {
       if (connectionRef.current && connectionRef.current.state === signalR.HubConnectionState.Connected) {
@@ -448,6 +463,18 @@ export default function PartyRoomPage() {
     }
   }, [connection, newMessage, roomId, username]);
 
+  useEffect(() => {
+    const el = chatRef.current;
+    if (!el) return;
+
+    if (shouldAutoScrollRef.current) {
+      el.scrollTo({
+        top: el.scrollHeight,
+        behavior: "smooth",
+      });
+    }
+  }, [messages]);
+
   // UI
   if (!room) return <p>Loading room...</p>;
 
@@ -473,17 +500,14 @@ export default function PartyRoomPage() {
             {room.queue && room.queue.length > 0 ? (
               <ul>
                 {room.queue.map((track, i) => {
-                  const isPlaceholder = track.TrackId === "placeholder" || !track.TrackId;
+                  const isPlaceholder = track.trackId === "placeholder" || !track.trackId;
                   const title = isPlaceholder
-                    ? "No video loaded"
-                    : track.Title || track.title || track.TrackId || "Unknown";
-                  const creator = isPlaceholder
-                    ? ""
-                    : track.Creator || track.creator || track.ChannelTitle || "Unknown";
+                    ? "No video in queue"
+                    : track.title || track.trackId || "Unknown";
 
                   return (
                     <li key={i}>
-                      {title} {creator && `— ${creator}`}
+                      {title}
                     </li>
                   );
                 })}
@@ -505,10 +529,14 @@ export default function PartyRoomPage() {
           <div className="partyroom-buttons">
             <button
               onClick={async () => {
-                let input = prompt("Enter YouTube link or ID:");
+                const input = prompt("Enter YouTube link or ID:");
                 if (!input) return;
+
                 const videoId = extractYouTubeId(input);
-                if (!videoId) return;
+                if (!videoId) {
+                  alert("Invalid YouTube link or ID");
+                  return;
+                }
 
                 if (!connection || connection.state !== signalR.HubConnectionState.Connected) {
                   alert("Not connected to server yet. Try again in a moment.");
@@ -516,10 +544,12 @@ export default function PartyRoomPage() {
                 }
 
                 try {
+                  // Call the backend method that handles first-track replacement and normal enqueue
                   await connection.invoke("EnqueueTrack", parseInt(roomId), videoId);
+                  console.log("Track added successfully");
                 } catch (err) {
-                  console.error("Enqueue/Load failed:", err);
-                  alert("Failed to enqueue or load the track.");
+                  console.error("Failed to add track:", err);
+                  alert("Failed to add track.");
                 }
               }}
             >
@@ -555,7 +585,11 @@ export default function PartyRoomPage() {
         </div>
 
         <div className="chat-panel">
-          <div className="chat-messages">
+          <div
+            className="chat-messages"
+            ref={chatRef}
+            onScroll={handleChatScroll}
+          >
             {messages.map((m, i) => (
               <div key={i}>
                 {m.system ? (
