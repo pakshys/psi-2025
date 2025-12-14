@@ -38,4 +38,4 @@ coverage.json
 Thumbs.db
 
 # appsettings
-*/appsettings.json
+**/appsettings.json
