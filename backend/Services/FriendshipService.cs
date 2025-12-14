@@ -13,26 +13,6 @@ namespace backend.Services
             _context = context;
         }
 
-        public async Task<List<Friendship>> GetFriendsAsync(string userId)
-        {
-            return await _context.Friendships
-                .Include(f => f.Requester)
-                .Include(f => f.Addressee)
-                .Where(f =>
-                    (f.RequesterId == userId || f.AddresseeId == userId) &&
-                    f.Status == FriendshipStatus.Accepted)
-                .ToListAsync();
-        }
-
-        public async Task<List<Friendship>> GetPendingAsync(string userId)
-        {
-            return await _context.Friendships
-                .Include(f => f.Requester)
-                .Include(f => f.Addressee)
-                .Where(f => f.AddresseeId == userId && f.Status == FriendshipStatus.Pending)
-                .ToListAsync();
-        }
-
         public async Task<Friendship> SendRequestAsync(string requesterId, string addresseeId)
         {
             if (requesterId == addresseeId)
@@ -43,7 +23,15 @@ namespace backend.Services
                 (f.RequesterId == addresseeId && f.AddresseeId == requesterId));
 
             if (existing != null)
-                throw new InvalidOperationException("Friend request already exists or users are already friends.");
+            {
+                if (existing.Status == FriendshipStatus.Accepted)
+                    throw new InvalidOperationException("Users are already friends.");
+
+                if (existing.Status == FriendshipStatus.Pending)
+                    throw new InvalidOperationException("Friend request already exists.");
+
+                throw new InvalidOperationException("Friend request cannot be created.");
+            }
 
             var friendship = new Friendship
             {
@@ -62,6 +50,9 @@ namespace backend.Services
             var friendship = await _context.Friendships.FindAsync(id)
                 ?? throw new KeyNotFoundException("Friend request not found.");
 
+            if (friendship.Status != FriendshipStatus.Pending)
+                throw new InvalidOperationException("This request is not pending.");
+
             if (friendship.AddresseeId != userId)
                 throw new UnauthorizedAccessException("You are not allowed to accept this request.");
 
@@ -74,6 +65,9 @@ namespace backend.Services
             var friendship = await _context.Friendships.FindAsync(id)
                 ?? throw new KeyNotFoundException("Friend request not found.");
 
+            if (friendship.Status != FriendshipStatus.Pending)
+                throw new InvalidOperationException("This request is not pending.");
+
             if (friendship.AddresseeId != userId)
                 throw new UnauthorizedAccessException("You are not allowed to reject this request.");
 
@@ -81,11 +75,13 @@ namespace backend.Services
             await _context.SaveChangesAsync();
         }
 
-        public async Task<List<FriendSummary>> GetSummariesAsync(string userId)
+        public async Task<List<FriendSummary>> GetAcceptedSummariesAsync(string userId)
         {
             return await _context.Friendships
                 .Include(f => f.Requester).Include(f => f.Addressee)
-                .Where(f => f.RequesterId == userId || f.AddresseeId == userId)
+                .Where(f =>
+                    (f.RequesterId == userId || f.AddresseeId == userId) &&
+                    f.Status == FriendshipStatus.Accepted)
                 .OrderByDescending(f => f.CreatedAt)
                 .Select(f => new FriendSummary(
                     f.Id,
@@ -99,7 +95,7 @@ namespace backend.Services
                 .ToListAsync();
         }
 
-        public async Task<List<FriendSummary>> GetPendingSummariesAsync(string userId)
+        public async Task<List<FriendSummary>> GetIncomingPendingSummariesAsync(string userId)
         {
             return await _context.Friendships
                 .Include(f => f.Requester)
@@ -113,6 +109,52 @@ namespace backend.Services
                     f.CreatedAt
                 ))
                 .ToListAsync();
+        }
+
+        public async Task<List<FriendSummary>> GetOutgoingPendingSummariesAsync(string userId)
+        {
+            return await _context.Friendships
+                .Include(f => f.Addressee)
+                .Where(f => f.RequesterId == userId && f.Status == FriendshipStatus.Pending)
+                .OrderByDescending(f => f.CreatedAt)
+                .Select(f => new FriendSummary(
+                    f.Id,
+                    f.AddresseeId,
+                    f.Addressee.UserName ?? f.AddresseeId,
+                    f.Status,
+                    f.CreatedAt
+                ))
+                .ToListAsync();
+        }
+
+        public async Task CancelOutgoingRequestAsync(int friendshipId, string userId)
+        {
+            var friendship = await _context.Friendships.FindAsync(friendshipId)
+                ?? throw new KeyNotFoundException("Friend request not found.");
+
+            if (friendship.RequesterId != userId)
+                throw new UnauthorizedAccessException("You are not allowed to cancel this request.");
+
+            if (friendship.Status != FriendshipStatus.Pending)
+                throw new InvalidOperationException("Only pending requests can be cancelled.");
+
+            _context.Friendships.Remove(friendship);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task RemoveFriendAsync(int friendshipId, string userId)
+        {
+            var friendship = await _context.Friendships.FindAsync(friendshipId)
+                ?? throw new KeyNotFoundException("Friendship not found.");
+
+            if (friendship.RequesterId != userId && friendship.AddresseeId != userId)
+                throw new UnauthorizedAccessException("You are not allowed to remove this friend.");
+
+            if (friendship.Status != FriendshipStatus.Accepted)
+                throw new InvalidOperationException("Only accepted friends can be removed.");
+
+            _context.Friendships.Remove(friendship);
+            await _context.SaveChangesAsync();
         }
     }
 }
