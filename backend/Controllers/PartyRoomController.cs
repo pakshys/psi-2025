@@ -47,14 +47,15 @@ public class PartyRoomController : ControllerBase
 
     // POST create action
     [HttpPost]
-    public async Task<IActionResult> Create([FromQuery] string name,
-                                            [FromQuery] int capacity = 10,
-                                            [FromQuery] bool isPrivate = false)
+    public async Task<IActionResult> Create([FromBody] CreatePartyRoomDto dto)
     {
         // Let middleware handle ArgumentException
-        var createdRoom = await _partyRoomService.CreateAsync(name: name,
-                                                    capacity: capacity,
-                                                    isPrivate: isPrivate);
+        var createdRoom = await _partyRoomService.CreateAsync(
+            dto.Name,
+            dto.Capacity,
+            dto.IsPrivate,
+            dto.Password
+        );
         
         // Count the creator as the first member
         createdRoom.GuestsCount = 1;
@@ -65,10 +66,10 @@ public class PartyRoomController : ControllerBase
 
     // POST join action
     [HttpPost("{id}/join")]
-    public async Task<IActionResult> Join(int id)
+    public async Task<IActionResult> Join(int id, [FromBody] JoinPartyRoomDto? dto)
     {
         // Let middleware handle exceptions
-        await _partyRoomService.JoinAsync(id);
+        await _partyRoomService.JoinAsync(id, dto?.Password);
         var partyRoom = await _partyRoomService.GetByIdAsync(id);
         return Ok(partyRoom);
     }
