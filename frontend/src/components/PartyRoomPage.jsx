@@ -4,7 +4,7 @@ import "./PartyRoomPage.css";
 import * as signalR from "@microsoft/signalr";
 
 const API_URL = "https://localhost:7234/partyroom";
-const PLACEHOLDER_VIDEO = "dQw4w9WgXcQ";
+const PLACEHOLDER_VIDEO = "cX9BSDR2vZ4";
 
 // Extract YouTube ID from many common formats
 function extractYouTubeId(input) {
