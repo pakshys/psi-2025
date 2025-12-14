@@ -1,4 +1,5 @@
 ﻿import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import "./Friends.css";
 
 const API_URL = "https://localhost:7234/Friendship";
@@ -44,6 +45,8 @@ async function sendJson(method, path) {
 }
 
 export default function Friends() {
+    const navigate = useNavigate();
+
     const [accepted, setAccepted] = useState([]);
     const [pending, setPending] = useState([]); // incoming
     const [outgoing, setOutgoing] = useState([]); // sent
@@ -60,9 +63,9 @@ export default function Friends() {
 
         try {
             const [a, p, o] = await Promise.all([
-                getJson("/list"), // accepted only
-                getJson("/pending"), // incoming pending
-                getJson("/outgoing").catch(() => []), // outgoing pending (jei endpointo nėra - tuščias)
+                getJson("/list"),                 // accepted only
+                getJson("/pending"),              // incoming pending
+                getJson("/outgoing").catch(() => []) // outgoing pending (jei endpointo nėra - tuščias)
             ]);
 
             setAccepted(Array.isArray(a) ? a : []);
@@ -160,6 +163,17 @@ export default function Friends() {
 
     return (
         <div className="friends-wrap">
+            {/* ✅ Return button (identical style to Profile/Login) */}
+            <div className="top-right">
+                <button
+                    className="login-link"
+                    onClick={() => navigate("/")}
+                    style={{ background: "transparent", cursor: "pointer" }}
+                >
+                    ← Main menu
+                </button>
+            </div>
+
             <h1 className="friends-title">Friends</h1>
 
             <div className="friends-actions">
@@ -274,3 +288,4 @@ export default function Friends() {
         </div>
     );
 }
+
