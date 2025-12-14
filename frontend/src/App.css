@@ -40,6 +40,7 @@
   border-radius: 8px;
   box-shadow: 0 0 15px rgba(255, 45, 187, 0.5);
   transition: all 0.3s ease;
+  min-width: 350px;
 }
 
 .get-started-btn:hover {

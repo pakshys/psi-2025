@@ -58,8 +58,8 @@ export default function UserMenu() {
           <button onClick={() => navigate("/profile")} className="dropdown-item">
             My Profile
           </button>
-          <button onClick={() => navigate("/settings")} className="dropdown-item">
-            Settings
+          <button onClick={() => navigate("/friends")} className="dropdown-item">
+            Friends
           </button>
           <button onClick={handleLogout} className="dropdown-item">
             Logout
