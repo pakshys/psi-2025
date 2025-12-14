@@ -30,50 +30,94 @@ public class FriendshipServiceTests
   }
 
   [Fact]
-  public async Task SendRequestAsync_CreatesPendingFriendship()
+  public async Task SendRequestAsync_RequestToSelf_ThrowsArgumentException()
+  {
+    var db = await GetDbContextAsync();
+    var service = new FriendshipService(db);
+
+    await Assert.ThrowsAsync<ArgumentException>(() => 
+      service.SendRequestAsync("user1", "user1"));
+  }
+
+  [Fact]
+  public async Task SendRequestAsync_AlreadyFriends_ThrowsInvalidOperationException()
+  {
+    var db = await GetDbContextAsync();
+    var service = new FriendshipService(db);
+
+    var friendship = await service.SendRequestAsync("user1", "user2");
+    await service.AcceptRequestAsync(friendship.Id, "user2");
+
+    await Assert.ThrowsAsync<InvalidOperationException>(() => 
+      service.SendRequestAsync("user1", "user2"));
+  }
+
+  [Fact]
+  public async Task SendRequestAsync_PendingRequest_ThrowsInvalidOperationException()
   {
     var db = await GetDbContextAsync();
     var service = new FriendshipService(db);
 
     var friendship = await service.SendRequestAsync("user1", "user2");
 
+    await Assert.ThrowsAsync<InvalidOperationException>(() => 
+      service.SendRequestAsync("user1", "user2"));
+  }
+
+  [Fact]
+  public async Task SendRequestAsync_RequestToOther_CreatesPendingFriendship()
+  {
+    var db = await GetDbContextAsync();
+    var service = new FriendshipService(db);
+
+    var friendship = await service.SendRequestAsync("user1", "user2");
+
+    Assert.NotNull(friendship);
     Assert.Equal("user1", friendship.RequesterId);
     Assert.Equal("user2", friendship.AddresseeId);
     Assert.Equal(FriendshipStatus.Pending, friendship.Status);
 
-    var stored = await db.Friendships.FindAsync(friendship.Id);
-    Assert.NotNull(stored);
+    var stored = await db.Friendships.SingleAsync();
+    Assert.Equal(friendship.Id, stored.Id);
   }
 
   [Fact]
-  public async Task SendRequestAsync_DuplicateRequest_ThrowsInvalidOperationException()
+  public async Task AcceptRequestAsync_NonExistingRequest_ThrowsKeyNotFoundException()
   {
     var db = await GetDbContextAsync();
     var service = new FriendshipService(db);
 
-    await service.SendRequestAsync("user1", "user2");
-
-    // same direction
-    await Assert.ThrowsAsync<InvalidOperationException>(() =>
-        service.SendRequestAsync("user1", "user2"));
-
-    // reverse direction
-    await Assert.ThrowsAsync<InvalidOperationException>(() =>
-        service.SendRequestAsync("user2", "user1"));
+    await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+      service.AcceptRequestAsync(999, "user1"));
   }
 
   [Fact]
-  public async Task SendRequestAsync_RequestSelf_ThrowsArgumentException()
+  public async Task AcceptRequestAsync_AlreadyAccepted_ThrowsInvalidOperationException()
   {
     var db = await GetDbContextAsync();
     var service = new FriendshipService(db);
 
-    await Assert.ThrowsAsync<ArgumentException>(() =>
-        service.SendRequestAsync("user1", "user1"));
+    var friendship = await service.SendRequestAsync("user1", "user2");
+    await service.AcceptRequestAsync(friendship.Id, "user2");
+
+    await Assert.ThrowsAsync<InvalidOperationException>(() =>
+      service.AcceptRequestAsync(friendship.Id, "user2"));
   }
 
   [Fact]
-  public async Task AcceptRequestAsync_ValidRequest_UpdatesStatusToAccepted()
+  public async Task AcceptRequestAsync_UserNotAddressee_ThrowsUnauthorizedAccessException()
+  {
+    var db = await GetDbContextAsync();
+    var service = new FriendshipService(db);
+
+    var friendship = await service.SendRequestAsync("user1", "user2");
+
+    await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+      service.AcceptRequestAsync(friendship.Id, "user1"));
+  }
+
+  [Fact]
+  public async Task AcceptRequestAsync_ValidRequest_ChangesStatusToAccepted()
   {
     var db = await GetDbContextAsync();
     var service = new FriendshipService(db);
@@ -82,11 +126,36 @@ public class FriendshipServiceTests
     await service.AcceptRequestAsync(friendship.Id, "user2");
 
     var updated = await db.Friendships.FindAsync(friendship.Id);
+
+    Assert.NotNull(updated);
     Assert.Equal(FriendshipStatus.Accepted, updated!.Status);
   }
 
   [Fact]
-  public async Task AcceptRequestAsync_UnauthorizedUser_ThrowsUnauthorizedAccessException()
+  public async Task RejectRequestAsync_NonExistingRequest_ThrowsKeyNotFoundException()
+  {
+    var db = await GetDbContextAsync();
+    var service = new FriendshipService(db);
+
+    await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+      service.RejectRequestAsync(999, "user1"));
+  }
+
+  [Fact]
+  public async Task RejectRequestAsync_NotPending_ThrowsInvalidOperationException()
+  {
+    var db = await GetDbContextAsync();
+    var service = new FriendshipService(db);
+
+    var friendship = await service.SendRequestAsync("user1", "user2");
+    await service.AcceptRequestAsync(friendship.Id, "user2");
+
+    await Assert.ThrowsAsync<InvalidOperationException>(() =>
+      service.RejectRequestAsync(friendship.Id, "user2"));
+  }
+
+  [Fact]
+  public async Task RejectRequestAsync_UserNotAddressee_ThrowsUnauthorizedAccessException()
   {
     var db = await GetDbContextAsync();
     var service = new FriendshipService(db);
@@ -94,21 +163,11 @@ public class FriendshipServiceTests
     var friendship = await service.SendRequestAsync("user1", "user2");
 
     await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
-        service.AcceptRequestAsync(friendship.Id, "user1"));
+      service.RejectRequestAsync(friendship.Id, "user1"));
   }
 
   [Fact]
-  public async Task AcceptRequestAsync_NonExistent_ThrowsKeyNotFoundException()
-  {
-    var db = await GetDbContextAsync();
-    var service = new FriendshipService(db);
-
-    await Assert.ThrowsAsync<KeyNotFoundException>(() =>
-        service.AcceptRequestAsync(9999, "user1"));
-  }
-
-  [Fact]
-  public async Task RejectRequestAsync_ValidRequest_RemovesFriendship()
+  public async Task AcceptRequestAsync_ValidRequest_RemovesFriendship()
   {
     var db = await GetDbContextAsync();
     var service = new FriendshipService(db);
@@ -116,60 +175,38 @@ public class FriendshipServiceTests
     var friendship = await service.SendRequestAsync("user1", "user2");
     await service.RejectRequestAsync(friendship.Id, "user2");
 
-    var exists = await db.Friendships.FindAsync(friendship.Id);
-    Assert.Null(exists);
+    var deleted = await db.Friendships.FindAsync(friendship.Id);
+    Assert.Null(deleted);
   }
 
   [Fact]
-  public async Task RejectRequestAsync_UnauthorizedUser_ThrowsUnauthorizedAccessException()
-  {
-    var db = await GetDbContextAsync();
-    var service = new FriendshipService(db);
-
-    var friendship = await service.SendRequestAsync("user1", "user2");
-
-    await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
-        service.RejectRequestAsync(friendship.Id, "user1"));
-  }
-
-  [Fact]
-  public async Task RejectRequestAsync_NonExistent_ThrowsKeyNotFoundException()
-  {
-    var db = await GetDbContextAsync();
-    var service = new FriendshipService(db);
-
-    await Assert.ThrowsAsync<KeyNotFoundException>(() =>
-        service.RejectRequestAsync(9999, "user1"));
-  }
-
-  [Fact]
-  public async Task GetFriendsAsync_ReturnsMultipleFriends()
+  public async Task GetAcceptedSummariesAsync_ReturnsFriendSummaries()
   {
     var db = await GetDbContextAsync();
     var service = new FriendshipService(db);
 
     var f1 = await service.SendRequestAsync("user1", "user2");
-    var f2 = await service.SendRequestAsync("user1", "user4");
+    var f2 = await service.SendRequestAsync("user3", "user1"); // user3 has null UserName
+
     await service.AcceptRequestAsync(f1.Id, "user2");
-    await service.AcceptRequestAsync(f2.Id, "user4");
+    await service.AcceptRequestAsync(f2.Id, "user1");
 
-    var friends = await service.GetFriendsAsync("user1");
-    Assert.Equal(2, friends.Count);
-    Assert.All(friends, f => Assert.Equal(FriendshipStatus.Accepted, f.Status));
+    var summaries = await service.GetAcceptedSummariesAsync("user1");
+
+    Assert.Equal(2, summaries.Count);
+
+    Assert.All(summaries, s =>
+        Assert.Equal(FriendshipStatus.Accepted, s.Status));
+
+    var summary1 = summaries.Single(s => s.OtherUserId == "user2");
+    Assert.Equal("Bob", summary1.OtherUserName);
+
+    var summary2 = summaries.Single(s => s.OtherUserId == "user3");
+    Assert.Equal("user3", summary2.OtherUserName); // fallback when UserName is null
   }
 
   [Fact]
-  public async Task GetFriendsAsync_NoFriends_ReturnsEmpty()
-  {
-    var db = await GetDbContextAsync();
-    var service = new FriendshipService(db);
-
-    var friends = await service.GetFriendsAsync("user3");
-    Assert.Empty(friends);
-  }
-
-  [Fact]
-  public async Task GetPendingAsync_ReturnsPendingFriendships()
+  public async Task GetIncomingPendingSummariesAsync_ReturnsPendingSummaries()
   {
     var db = await GetDbContextAsync();
     var service = new FriendshipService(db);
@@ -177,49 +214,144 @@ public class FriendshipServiceTests
     await service.SendRequestAsync("user1", "user2");
     await service.SendRequestAsync("user3", "user2");
 
-    var pending = await service.GetPendingAsync("user2");
-    Assert.Equal(2, pending.Count);
-    Assert.All(pending, f => Assert.Equal(FriendshipStatus.Pending, f.Status));
-  }
+    // this one shouldnt be included (outgoing)
+    await service.SendRequestAsync("user2", "user4");
 
-  [Fact]
-  public async Task GetSummariesAsync_ReturnsCorrectSummaries_WithNullUserName()
-  {
-    var db = await GetDbContextAsync();
-    var service = new FriendshipService(db);
+    var summaries = await service.GetIncomingPendingSummariesAsync("user2");
 
-    var f1 = await service.SendRequestAsync("user1", "user3"); // user3 has null UserName
-    var f2 = await service.SendRequestAsync("user4", "user1");
-    await service.AcceptRequestAsync(f2.Id, "user1");
-
-    var summaries = await service.GetSummariesAsync("user1");
     Assert.Equal(2, summaries.Count);
 
-    var nullNameSummary = summaries.First(s => s.OtherUserId == "user3");
-    Assert.Equal("user3", nullNameSummary.OtherUserName);
+    Assert.All(summaries, s =>
+        Assert.Equal(FriendshipStatus.Pending, s.Status));
+
+    Assert.Contains(summaries, s =>
+        s.OtherUserId == "user1" && s.OtherUserName == "Alice");
+
+    Assert.Contains(summaries, s =>
+        s.OtherUserId == "user3" && s.OtherUserName == "user3"); // null username fallback
   }
 
   [Fact]
-  public async Task GetPendingSummariesAsync_ReturnsCorrectPendingSummaries()
+  public async Task GetOutgoingPendingSummariesAsync_ReturnsOutgoingPendingSummaries()
   {
     var db = await GetDbContextAsync();
     var service = new FriendshipService(db);
 
-    var f1 = await service.SendRequestAsync("user1", "user2");
-    var f2 = await service.SendRequestAsync("user3", "user2");
+    await service.SendRequestAsync("user2", "user1");
+    await service.SendRequestAsync("user2", "user3");
 
-    var summaries = await service.GetPendingSummariesAsync("user2");
+    // this one shouldnt be included (incoming)
+    await service.SendRequestAsync("user4", "user2");
+
+    var summaries = await service.GetOutgoingPendingSummariesAsync("user2");
+
     Assert.Equal(2, summaries.Count);
-    Assert.All(summaries, s => Assert.Equal(FriendshipStatus.Pending, s.Status));
+
+    Assert.All(summaries, s =>
+        Assert.Equal(FriendshipStatus.Pending, s.Status));
+
+    Assert.Contains(summaries, s =>
+        s.OtherUserId == "user1" && s.OtherUserName == "Alice");
+
+    Assert.Contains(summaries, s =>
+        s.OtherUserId == "user3" && s.OtherUserName == "user3"); // null username fallback
   }
 
   [Fact]
-  public async Task GetPendingSummariesAsync_NoPending_ReturnsEmpty()
+  public async Task CancelOutgoingRequestAsync_RequestDoesntExist_ThrowsKeyNotFoundException()
   {
     var db = await GetDbContextAsync();
     var service = new FriendshipService(db);
 
-    var summaries = await service.GetPendingSummariesAsync("user1");
-    Assert.Empty(summaries);
+    await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+        service.CancelOutgoingRequestAsync(9999, "user1"));
+  }
+
+  [Fact]
+  public async Task CancelOutgoingRequestAsync_UserNotRequester_ThrowsUnauthorizedAccessException()
+  {
+    var db = await GetDbContextAsync();
+    var service = new FriendshipService(db);
+
+    var friendship = await service.SendRequestAsync("user1", "user2");
+
+    await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+        service.CancelOutgoingRequestAsync(friendship.Id, "user2"));
+  }
+
+  [Fact]
+  public async Task CancelOutgoingRequestAsync_FriendshipNotPending_ThrowsInvalidOperationException()
+  {
+    var db = await GetDbContextAsync();
+    var service = new FriendshipService(db);
+
+    var friendship = await service.SendRequestAsync("user1", "user2");
+    await service.AcceptRequestAsync(friendship.Id, "user2");
+
+    await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        service.CancelOutgoingRequestAsync(friendship.Id, "user1"));
+  }
+
+  [Fact]
+  public async Task CancelOutgoingRequestAsync_ValidRequest_RemovesFriendship()
+  {
+    var db = await GetDbContextAsync();
+    var service = new FriendshipService(db);
+
+    var friendship = await service.SendRequestAsync("user1", "user2");
+    await service.CancelOutgoingRequestAsync(friendship.Id, "user1");
+
+    var exists = await db.Friendships.FindAsync(friendship.Id);
+    Assert.Null(exists);
+  }
+
+  [Fact]
+  public async Task RemoveFriendAsync_FriendshipDoesntExist_ThrowsKeyNotFoundException()
+  {
+    var db = await GetDbContextAsync();
+    var service = new FriendshipService(db);
+
+    await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+        service.RemoveFriendAsync(9999, "user1"));
+  }
+
+  [Fact]
+  public async Task RemoveFriendAsync_UserNotParticipant_ThrowsUnauthorizedAccessException()
+  {
+    var db = await GetDbContextAsync();
+    var service = new FriendshipService(db);
+
+    var friendship = await service.SendRequestAsync("user1", "user2");
+    await service.AcceptRequestAsync(friendship.Id, "user2");
+
+    await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+        service.RemoveFriendAsync(friendship.Id, "user3"));
+  }
+
+  [Fact]
+  public async Task RemoveFriendAsync_FriendshipNotAccepted_ThrowsInvalidOperationException()
+  {
+    var db = await GetDbContextAsync();
+    var service = new FriendshipService(db);
+
+    var friendship = await service.SendRequestAsync("user1", "user2");
+
+    await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        service.RemoveFriendAsync(friendship.Id, "user1"));
+  }
+
+  [Fact]
+  public async Task RemoveFriendAsync_ValidRequest_RemovesFriendship()
+  {
+    var db = await GetDbContextAsync();
+    var service = new FriendshipService(db);
+
+    var friendship = await service.SendRequestAsync("user1", "user2");
+    await service.AcceptRequestAsync(friendship.Id, "user2");
+
+    await service.RemoveFriendAsync(friendship.Id, "user1");
+
+    var exists = await db.Friendships.FindAsync(friendship.Id);
+    Assert.Null(exists);
   }
 }
