@@ -4,7 +4,7 @@ import "./PartyRoomPage.css";
 import * as signalR from "@microsoft/signalr";
 
 const API_URL = "https://localhost:7234/partyroom";
-const PLACEHOLDER_VIDEO = "dQw4w9WgXcQ";
+const PLACEHOLDER_VIDEO = "cX9BSDR2vZ4";
 
 // Extract YouTube ID from many common formats
 function extractYouTubeId(input) {
@@ -48,6 +48,10 @@ export default function PartyRoomPage() {
   const pendingVideoRef = useRef(null);
   const isReloadRef = useRef(false);
   const lastEndedRef = useRef(0);
+
+  //Scoll state
+  const chatRef = useRef(null);
+  const shouldAutoScrollRef = useRef(true);
 
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
@@ -419,6 +423,17 @@ export default function PartyRoomPage() {
   }, [room, roomId, isMuted, loadVideoSafely]);
 
   // HANDLERS
+  const handleChatScroll = () => {
+    const el = chatRef.current;
+    if (!el) return;
+
+    const threshold = 50; // px from bottom
+    const atBottom =
+      el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
+
+    shouldAutoScrollRef.current = atBottom;
+  };
+
   const handleLeaveRoom = useCallback(async () => {
     try {
       if (connectionRef.current && connectionRef.current.state === signalR.HubConnectionState.Connected) {
@@ -447,6 +462,18 @@ export default function PartyRoomPage() {
       alert("Failed to send message.");
     }
   }, [connection, newMessage, roomId, username]);
+
+  useEffect(() => {
+    const el = chatRef.current;
+    if (!el) return;
+
+    if (shouldAutoScrollRef.current) {
+      el.scrollTo({
+        top: el.scrollHeight,
+        behavior: "smooth",
+      });
+    }
+  }, [messages]);
 
   // UI
   if (!room) return <p>Loading room...</p>;
@@ -558,7 +585,11 @@ export default function PartyRoomPage() {
         </div>
 
         <div className="chat-panel">
-          <div className="chat-messages">
+          <div
+            className="chat-messages"
+            ref={chatRef}
+            onScroll={handleChatScroll}
+          >
             {messages.map((m, i) => (
               <div key={i}>
                 {m.system ? (
