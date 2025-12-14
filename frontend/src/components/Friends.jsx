@@ -2,7 +2,7 @@
 import { useNavigate } from "react-router-dom";
 import "./Friends.css";
 
-const API_URL = "https://localhost:7234/Friendship";
+const API_URL = (import.meta.env.VITE_API_URL ?? "https://api.cotunes.online") + "/Friendship";
 
 async function readBody(res) {
     if (res.status === 204) return null;

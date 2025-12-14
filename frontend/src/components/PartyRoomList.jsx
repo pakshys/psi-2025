@@ -4,7 +4,8 @@ import "./PartyRoomList.css";
 import CreateRoomModal from "./CreateRoomModal";
 import JoinRoomModal from "./JoinRoomModal";
 
-const API_URL = "https://localhost:7234/partyroom";
+// const API_URL = "https://localhost:7234/partyroom";
+const API_URL = (import.meta.env.VITE_API_URL ?? "https://api.cotunes.online") + "/partyroom";
 
 function PartyRoomList() {
   const [rooms, setRooms] = useState([]);

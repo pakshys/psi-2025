@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import "./PartyRoomPage.css";
 import * as signalR from "@microsoft/signalr";
 
-const API_URL = "https://localhost:7234/partyroom";
+const API_URL = (import.meta.env.VITE_API_URL ?? "https://api.cotunes.online");
 const PLACEHOLDER_VIDEO = "cX9BSDR2vZ4";
 
 // Extract YouTube ID from many common formats
@@ -62,7 +62,7 @@ export default function PartyRoomPage() {
     let mounted = true;
     const checkAuth = async () => {
       try {
-        const res = await fetch("https://localhost:7234/Account/Me", { credentials: "include" });
+        const res = await fetch(`${API_URL}/Account/Me`, { credentials: "include" });
         if (!res.ok) {
           navigate("/login");
         } else {
@@ -191,7 +191,7 @@ export default function PartyRoomPage() {
   useEffect(() => {
     if (!isAuthenticated) return;
     const conn = new signalR.HubConnectionBuilder()
-      .withUrl("https://localhost:7234/hubs/partyroom")
+      .withUrl(`${API_URL}/hubs/partyroom`)
       .withAutomaticReconnect([0, 2000, 5000, 10000])
       .build();
 

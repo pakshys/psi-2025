@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import "./Profile.css";
 
+const API_URL = (import.meta.env.VITE_API_URL ?? "https://api.cotunes.online");
 export default function Profile() {
   const [profile, setProfile] = useState(null);
   const [file, setFile] = useState(null);
@@ -11,7 +12,7 @@ export default function Profile() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await fetch("https://localhost:7234/UserProfile/me", {
+        const res = await fetch(`${API_URL}/UserProfile/me`, {
           credentials: "include", // send cookies
         });
         if (!res.ok) {
@@ -49,7 +50,7 @@ export default function Profile() {
     formData.append("profile", file);
 
     try {
-      const res = await fetch("https://localhost:7234/UserProfile/upload-picture", {
+      const res = await fetch(`${API_URL}/UserProfile/upload-picture`, {
         method: "POST",
         body: formData,
         credentials: "include", // send cookies
@@ -84,7 +85,7 @@ export default function Profile() {
           <div className="profile-picture">
             {profile.profilePictureUrl ? (
               <img
-                src={`https://localhost:7234/UserProfile/picture/${profile.profilePictureUrl}`}
+                src={`${API_URL}/UserProfile/picture/${profile.profilePictureUrl}`}
                 alt="Profile"
               />
             ) : (

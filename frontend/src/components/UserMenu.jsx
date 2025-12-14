@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./UserMenu.css";
 
+const API_URL = (import.meta.env.VITE_API_URL ?? "https://api.cotunes.online");
 export default function UserMenu() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [checkedAuth, setCheckedAuth] = useState(false);
@@ -9,7 +10,7 @@ export default function UserMenu() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch("https://localhost:7234/Account/Me", {
+    fetch(`${API_URL}/Account/Me`, {
       credentials: "include"
     })
       .then(res => {
@@ -23,7 +24,7 @@ export default function UserMenu() {
   }, []);
 
   const handleLogout = async () => {
-    await fetch("https://localhost:7234/Account/Logout", {
+    await fetch(`${API_URL}/Account/Logout"` {
       method: "POST",
       credentials: "include"
     });

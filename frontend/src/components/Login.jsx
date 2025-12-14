@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import "./Login.css";
 
+const API_URL = (import.meta.env.VITE_API_URL ?? "https://api.cotunes.online") + "/Login";
+
 export default function Login() {
     const [formData, setFormData] = useState({
         login: "",
@@ -24,7 +26,7 @@ export default function Login() {
         setError("");
 
         try {
-            const response = await fetch("https://localhost:7234/Account/Login", {
+            const response = await fetch(API_URL, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"

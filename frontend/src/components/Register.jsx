@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import "./Register.css";
 
+const API_URL = (import.meta.env.VITE_API_URL ?? "https://api.cotunes.online");
 export default function Register() {
     const [formData, setFormData] = useState({
         userName: "",
@@ -30,7 +31,7 @@ export default function Register() {
         }
 
         try {
-            const response = await fetch("https://localhost:7234/account/register", {
+          const response = await fetch(`${API_URL}/account/register`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"

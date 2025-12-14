@@ -11,6 +11,8 @@ using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.WebHost.UseUrls("http://0.0.0.0:8080");
+
 // Configure Serilog
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)
@@ -27,12 +29,24 @@ builder.Host.UseSerilog();
 
 // Add services to the container.
 
+builder.Services.ConfigureApplicationCookie(options =>
+{
+  options.Cookie.HttpOnly = true;
+  options.Cookie.SameSite = SameSiteMode.None;
+  options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+  options.Events.OnRedirectToLogin = ctx =>
+  {
+    ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
+    return Task.CompletedTask;
+  };
+});
+
 // Adding CORS services
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend",
         policy => policy
-            .WithOrigins("http://localhost:5173") // React server origin
+            .WithOrigins("https://cotunes.online", "https://www.cotunes.online") // React server origin
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials()); // for SignalR !
@@ -109,6 +123,17 @@ if (app.Environment.IsDevelopment())
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 //app.UseHttpsRedirection(); //(BAD HANDSHAKE HTTP <-> HTTPS issue)
+
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+  ForwardedHeaders = ForwardedHeaders.XForwardedProto
+});
+
+using (var scope = app.Services.CreateScope())
+{
+  var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+  db.Database.Migrate();
+}
 
 app.UseCors("AllowFrontend");
 app.UseAuthentication();
