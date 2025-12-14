@@ -2,23 +2,23 @@ using backend.Database;
 using backend.Extensions;
 using backend.Models;
 using backend.Dtos;
+using backend.Services;
 using Microsoft.EntityFrameworkCore;
 using Google.Apis.Services;
 using Google.Apis.YouTube.v3;
 using Microsoft.Extensions.Options;
-
 
 namespace backend.Services;
 
 public class TrackQueueService : ITrackQueueService
 {
     private readonly ApplicationDbContext _dbContext;
-    private readonly IYoutubeMetadataService _youtubeMetadataService;
+    private readonly IYouTubeMetadataService _youTubeMetadataService;
 
-    public TrackQueueService(ApplicationDbContext dbContext, IYoutubeMetadataService youtubeMetadataService)
+    public TrackQueueService(ApplicationDbContext dbContext, IYouTubeMetadataService youtubeMetadataService)
     {
         _dbContext = dbContext;
-        _youtubeMetadataService = youtubeMetadataService;
+        _youTubeMetadataService = youtubeMetadataService;
     }
 
     public async Task EnqueueAsync(int roomId, string trackId)
@@ -96,7 +96,7 @@ public class TrackQueueService : ITrackQueueService
 
         foreach (var track in tracks)
         {
-            trackDtos.Add(await _youtubeMetadataService.GetTrackDtoAsync(track));
+            trackDtos.Add(await _youTubeMetadataService.GetTrackDtoAsync(track));
         }
 
         return trackDtos;

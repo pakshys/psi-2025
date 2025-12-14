@@ -1,14 +1,15 @@
 using backend.Dtos;
 using backend.Models;
+using backend.Services;
 using Google.Apis.Services;
 using Google.Apis.YouTube.v3;
 using Microsoft.Extensions.Options;
 
-public class YoutubeMetadataService : IYoutubeMetadataService
+public class YouTubeMetadataService : IYouTubeMetadataService
 {
     private readonly YouTubeService _youtubeService;
 
-    public YoutubeMetadataService(IOptions<YouTubeSettings> options)
+    public YouTubeMetadataService(IOptions<YouTubeSettings> options)
     {
         // Initialize YouTube API
         _youtubeService = new YouTubeService(new BaseClientService.Initializer
