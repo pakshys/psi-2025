@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace backend.Services
 {
-    public class FriendshipService
+    public class FriendshipService : IFriendshipService
     {
         private readonly ApplicationDbContext _context;
 

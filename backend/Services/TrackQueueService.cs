@@ -10,7 +10,7 @@ using Microsoft.Extensions.Options;
 
 namespace backend.Services;
 
-public class TrackQueueService
+public class TrackQueueService : ITrackQueueService
 {
     private readonly ApplicationDbContext _dbContext;
     private readonly string _apiKey;

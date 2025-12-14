@@ -3,7 +3,7 @@ using System.Collections.Concurrent;
 
 namespace backend.Services;
 
-public class VoteService
+public class VoteService : IVoteService
 {
     private readonly ConcurrentDictionary<string, RoomVote> _activeVotes = new();
 

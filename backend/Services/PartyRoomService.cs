@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace backend.Services;
 
-public class PartyRoomService
+public class PartyRoomService : IPartyRoomService
 {
   private readonly ApplicationDbContext _context;
   private readonly ILogger<PartyRoomService> _logger;
