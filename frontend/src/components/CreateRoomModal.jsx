@@ -5,7 +5,8 @@ export default function CreateRoomModal({ isOpen, onClose, onCreate }) {
   const [formData, setFormData] = useState({
     name: "",
     capacity: 10,
-    access: "Public"
+    access: "Public",
+    password: ""
   });
 
   useEffect(() => {
@@ -35,8 +36,10 @@ export default function CreateRoomModal({ isOpen, onClose, onCreate }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     onCreate({
-      ...formData,
-      isPrivate: formData.access === "Private"
+      name: formData.name,
+      capacity: formData.capacity,
+      isPrivate: formData.access === "Private",
+      password: formData.access === "Private" ? formData.password : null
     });
   };
 
@@ -85,6 +88,20 @@ export default function CreateRoomModal({ isOpen, onClose, onCreate }) {
                 <option value="Private">Private</option>
               </select>
             </label>
+
+            {formData.access === "Private" && (
+              <label>
+                Room Password
+                <input
+                  type="password"
+                  name="password"
+                  className="input-box"
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
+                />
+              </label>
+            )}
 
             <button type="submit" className="create-btn">
               Create

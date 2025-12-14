@@ -54,10 +54,10 @@ public class PartyRoomController : ControllerBase
 
     // POST join action
     [HttpPost("{id}/join")]
-    public async Task<IActionResult> Join(int id, [FromBody] JoinPartyRoomDto dto)
+    public async Task<IActionResult> Join(int id, [FromBody] JoinPartyRoomDto? dto)
     {
         // Let middleware handle exceptions
-        await _partyRoomService.JoinAsync(id, dto.Password);
+        await _partyRoomService.JoinAsync(id, dto?.Password);
         var partyRoom = await _partyRoomService.GetByIdAsync(id);
         return Ok(partyRoom);
     }
