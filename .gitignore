@@ -36,3 +36,6 @@ coverage.json
 *.sw?
 .DS_Store
 Thumbs.db
+
+# appsettings
+*/appsettings.json
