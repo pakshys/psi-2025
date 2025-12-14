@@ -26,7 +26,7 @@ namespace backend.Controllers
             var user = await _userManager.GetUserAsync(User);
             if (user is null) return Unauthorized();
 
-            var data = await _service.GetSummariesAsync(user.Id);
+            var data = await _service.GetAcceptedSummariesAsync(user.Id);
             return Ok(data);
         }
 
@@ -36,20 +36,36 @@ namespace backend.Controllers
             var user = await _userManager.GetUserAsync(User);
             if (user is null) return Unauthorized();
 
-            var data = await _service.GetPendingSummariesAsync(user.Id);
+            var data = await _service.GetIncomingPendingSummariesAsync(user.Id);
             return Ok(data);
         }
 
-        [HttpPost("add/{targetUserId}")]
-        public async Task<IActionResult> AddFriend(string targetUserId)
+        [HttpGet("outgoing")]
+        public async Task<ActionResult<IEnumerable<FriendSummary>>> Outgoing()
         {
             var user = await _userManager.GetUserAsync(User);
-            if (user == null)
-                return Unauthorized();
+            if (user is null) return Unauthorized();
+
+            var data = await _service.GetOutgoingPendingSummariesAsync(user.Id);
+            return Ok(data);
+        }
+
+        [HttpPost("add/by-username/{username}")]
+        public async Task<IActionResult> AddByUsername(string username)
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null) return Unauthorized();
+
+            if (string.IsNullOrWhiteSpace(username))
+                return BadRequest(new { error = "Username is required." });
+
+            var target = await _userManager.FindByNameAsync(username);
+            if (target == null)
+                return NotFound(new { error = "User not found." });
 
             try
             {
-                var request = await _service.SendRequestAsync(user.Id, targetUserId);
+                var request = await _service.SendRequestAsync(user.Id, target.Id);
                 return Ok(new { message = "Friend request sent.", requestId = request.Id });
             }
             catch (ArgumentException ex)
@@ -60,18 +76,13 @@ namespace backend.Controllers
             {
                 return Conflict(new { error = ex.Message });
             }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(new { error = ex.Message });
-            }
         }
 
         [HttpPost("accept/{id}")]
         public async Task<IActionResult> Accept(int id)
         {
             var user = await _userManager.GetUserAsync(User);
-            if (user == null)
-                return Unauthorized();
+            if (user == null) return Unauthorized();
 
             try
             {
@@ -88,12 +99,37 @@ namespace backend.Controllers
             }
         }
 
-        [HttpDelete("reject/{id}")]
-        public async Task<IActionResult> Reject(int id)
+        [HttpDelete("cancel/{id}")]
+        public async Task<IActionResult> Cancel(int id)
         {
             var user = await _userManager.GetUserAsync(User);
             if (user == null)
                 return Unauthorized();
+
+            try
+            {
+                await _service.CancelOutgoingRequestAsync(id, user.Id);
+                return Ok(new { message = "Friend request cancelled." });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Forbid(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { error = ex.Message });
+            }
+        }
+
+        [HttpDelete("reject/{id}")]
+        public async Task<IActionResult> Reject(int id)
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null) return Unauthorized();
 
             try
             {
@@ -103,6 +139,31 @@ namespace backend.Controllers
             catch (UnauthorizedAccessException ex)
             {
                 return Forbid(ex.Message);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { error = ex.Message });
+            }
+        }
+
+        [HttpDelete("remove/{id}")]
+        public async Task<IActionResult> Remove(int id)
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null) return Unauthorized();
+
+            try
+            {
+                await _service.RemoveFriendAsync(id, user.Id);
+                return Ok(new { message = "Friend removed." });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Forbid(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
             }
             catch (KeyNotFoundException ex)
             {
