@@ -1,7 +1,14 @@
 import React, { useState } from "react";
 import "./Register.css";
+import { useNavigate } from "react-router-dom";
+
 
 export default function Register() {
+    const navigate = useNavigate();
+    const handleBack = () => {
+    navigate("/"); // go to main page
+    };
+
     const [formData, setFormData] = useState({
         userName: "",
         email: "",
@@ -73,60 +80,68 @@ export default function Register() {
         <div className="register-page">
             <div className="register-form-section">
                 <div className="register-form">
-                    <h1>Create Account</h1>
-                    <p>Join us and start your journey today!</p>
+                <h1>Create Account</h1>
+                <p>Join us and start your journey today!</p>
 
-                    <form onSubmit={handleSubmit}>
-                        <input
-                            type="text"
-                            name="userName"
-                            className="register-input"
-                            placeholder="Username"
-                            value={formData.userName}
-                            onChange={handleChange}
-                            required
-                        />
-                        <input
-                            type="email"
-                            name="email"
-                            className="register-input"
-                            placeholder="Email"
-                            value={formData.email}
-                            onChange={handleChange}
-                            required
-                        />
-                        <input
-                            type="password"
-                            name="password"
-                            className="register-input"
-                            placeholder="Password"
-                            value={formData.password}
-                            onChange={handleChange}
-                            required
-                        />
-                        <input
-                            type="password"
-                            name="confirmPassword"
-                            className="register-input"
-                            placeholder="Confirm Password"
-                            value={formData.confirmPassword}
-                            onChange={handleChange}
-                            required
-                        />
+                <form onSubmit={handleSubmit}>
+                    <input
+                    type="text"
+                    name="userName"
+                    className="register-input"
+                    placeholder="Username"
+                    value={formData.userName}
+                    onChange={handleChange}
+                    required
+                    />
+                    <input
+                    type="email"
+                    name="email"
+                    className="register-input"
+                    placeholder="Email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    required
+                    />
+                    <input
+                    type="password"
+                    name="password"
+                    className="register-input"
+                    placeholder="Password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    required
+                    />
+                    <input
+                    type="password"
+                    name="confirmPassword"
+                    className="register-input"
+                    placeholder="Confirm Password"
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    required
+                    />
 
-                        {error && <p className="error-message">{error}</p>}
-                        {message && <p className="success-message">{message}</p>}
+                    {error && <p className="error-message">{error}</p>}
+                    {message && <p className="success-message">{message}</p>}
 
-                        <button type="submit" className="register-btn">Register</button>
-                    </form>
+                    <button type="submit" className="register-btn">Register</button>
+                </form>
 
-                    <p className="account-link">
-                        Already have an account? <a href="/login">Sign In</a>
-                    </p>
+                <p className="account-link">
+                    Already have an account? <a href="/login">Sign In</a>
+                </p>
+
+                <button
+                type="button"
+                className="back-link"
+                onClick={handleBack}
+                >
+                ← Back
+                </button>
                 </div>
 
                 <div className="placeholder"></div>
             </div>
-        </div>
+            </div>
     );
 }

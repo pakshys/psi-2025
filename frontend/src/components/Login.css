@@ -134,3 +134,36 @@
   z-index: 0;
   filter: blur(2px);
 }
+
+.back-link {
+    display: inline-block;
+    margin-top: 0.5rem;
+    color: #91ffc1;
+    font-size: 1.1rem;
+    text-decoration: none;
+    border: 2px solid #91ffc1;
+    padding: 0.8rem 0.5rem;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    background: transparent;
+    width: 100%;
+
+    /* remove outlines and shadows on focus/active */
+    outline: none;
+    box-shadow: none;
+    text-align: center;
+}
+
+.back-link:hover {
+    background: #91ffc1;
+    color: #121212;
+}
+
+.back-link:focus,
+.back-link:active {
+    outline: none;
+    box-shadow: none;
+    background: #91ffc1; /* maintain hover color on focus/click */
+    color: #121212;
+}
