@@ -13,12 +13,12 @@ namespace backend.Controllers
     {
         private readonly SignInManager<User> _signInManager;
         private readonly UserManager<User> _userManager;
-        private readonly UserProfileService _profileService;
+        private readonly IUserProfileService _profileService;
 
         public AccountController(
             SignInManager<User> signInManager,
             UserManager<User> userManager,
-            UserProfileService profileService)
+            IUserProfileService profileService)
         {
             _signInManager = signInManager;
             _userManager = userManager;

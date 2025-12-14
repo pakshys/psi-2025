@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace backend.Services
 {
-    public class UserProfileService
+    public class UserProfileService : IUserProfileService
     {
         private readonly ApplicationDbContext _context;
 

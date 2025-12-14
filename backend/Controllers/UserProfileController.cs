@@ -10,10 +10,10 @@ namespace backend.Controllers
     [Route("[controller]")]
     public class UserProfileController : ControllerBase
     {
-        private readonly UserProfileService _service;
+        private readonly IUserProfileService _service;
         private readonly UserManager<User> _userManager;
 
-        public UserProfileController(UserProfileService service, UserManager<User> userManager)
+        public UserProfileController(IUserProfileService service, UserManager<User> userManager)
         {
             _service = service;
             _userManager = userManager;

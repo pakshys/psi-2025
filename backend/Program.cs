@@ -66,19 +66,19 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("Database")));
 
 // Register PartyRoomService for dependency injection
-builder.Services.AddScoped<PartyRoomService>();
+builder.Services.AddScoped<IPartyRoomService, PartyRoomService>();
 
 // Register UserProfileService
-builder.Services.AddScoped<UserProfileService>();
+builder.Services.AddScoped<IUserProfileService, UserProfileService>();
 
 // Register FriendshipService
-builder.Services.AddScoped<FriendshipService>();
+builder.Services.AddScoped<IFriendshipService, FriendshipService>();
 
 // RegisterTrackQueueService
-builder.Services.AddScoped<TrackQueueService>();
+builder.Services.AddScoped<ITrackQueueService, TrackQueueService>();
 
-builder.Services.AddSingleton<RoomStateService>();
-builder.Services.AddSingleton<VoteService>();
+builder.Services.AddSingleton<IRoomStateService, RoomStateService>();
+builder.Services.AddSingleton<IVoteService, VoteService>();
 
 // Register SignalR for real-time functionalities
 builder.Services.AddSignalR(options =>

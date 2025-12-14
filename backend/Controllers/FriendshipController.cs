@@ -11,10 +11,10 @@ namespace backend.Controllers
     [Authorize]
     public class FriendshipController : ControllerBase
     {
-        private readonly FriendshipService _service;
+        private readonly IFriendshipService _service;
         private readonly UserManager<User> _userManager;
 
-        public FriendshipController(FriendshipService service, UserManager<User> userManager)
+        public FriendshipController(IFriendshipService service, UserManager<User> userManager)
         {
             _service = service;
             _userManager = userManager;

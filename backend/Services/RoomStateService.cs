@@ -4,7 +4,7 @@ using System.Collections.Concurrent;
 
 namespace backend.Services;
 
-public class RoomStateService
+public class RoomStateService : IRoomStateService
 {
 
     // Playback state for room

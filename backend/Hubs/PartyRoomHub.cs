@@ -10,15 +10,15 @@ namespace backend.Hubs
   public class PartyRoomHub : Hub
   {
     private readonly ApplicationDbContext _dbContext;
-    private readonly TrackQueueService _trackQueueService;
-    private readonly RoomStateService _roomStateService;
-    private readonly VoteService _voteService;
+    private readonly ITrackQueueService _trackQueueService;
+    private readonly IRoomStateService _roomStateService;
+    private readonly IVoteService _voteService;
 
     public PartyRoomHub(
-      TrackQueueService trackQueueService,
+      ITrackQueueService trackQueueService,
       ApplicationDbContext dbContext,
-      RoomStateService roomStateService,
-      VoteService voteService)
+      IRoomStateService roomStateService,
+      IVoteService voteService)
     {
       _trackQueueService = trackQueueService;
       _dbContext = dbContext;

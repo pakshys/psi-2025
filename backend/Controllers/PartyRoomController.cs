@@ -9,9 +9,9 @@ namespace backend.Controllers;
 [Route("[controller]")]
 public class PartyRoomController : ControllerBase
 {
-    private readonly PartyRoomService _partyRoomService;
+    private readonly IPartyRoomService _partyRoomService;
 
-    public PartyRoomController(PartyRoomService service)
+    public PartyRoomController(IPartyRoomService service)
     {
         _partyRoomService = service;
     }

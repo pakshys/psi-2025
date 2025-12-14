@@ -9,7 +9,7 @@ using Google.Apis.YouTube.v3;
 
 namespace backend.Services;
 
-public class TrackQueueService
+public class TrackQueueService : ITrackQueueService
 {
     private readonly ApplicationDbContext _dbContext;
 
