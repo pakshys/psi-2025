@@ -77,6 +77,8 @@ builder.Services.AddScoped<IFriendshipService, FriendshipService>();
 // RegisterTrackQueueService
 builder.Services.AddScoped<ITrackQueueService, TrackQueueService>();
 
+builder.Services.AddScoped<IYoutubeMetadataService, YoutubeMetadataService>();
+
 builder.Services.AddSingleton<IRoomStateService, RoomStateService>();
 builder.Services.AddSingleton<IVoteService, VoteService>();
 
