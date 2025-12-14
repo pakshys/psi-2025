@@ -1,13 +1,20 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./PartyRoomList.css";
+import CreateRoomModal from "./CreateRoomModal";
+import JoinRoomModal from "./JoinRoomModal";
 
 const API_URL = "https://localhost:7234/partyroom";
 
 function PartyRoomList() {
   const [rooms, setRooms] = useState([]);
   const [search, setSearch] = useState("");
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showJoinModal, setShowJoinModal] = useState(false);
+  const [selectedRoom, setSelectedRoom] = useState(null);
+  const [joinError, setJoinError] = useState("");
   const navigate = useNavigate();
+  
 
   // === Fetch room list ===
   useEffect(() => {
@@ -26,27 +33,70 @@ function PartyRoomList() {
   }, []);
 
   // === Actions ===
-  const handleJoinRoom = (roomId) => {
-    fetch(`${API_URL}/${roomId}/join`, { method: "POST" })
-      .then((r) => r.json())
-      .then(() => navigate(`/room/${roomId}`))
-      .catch((e) => alert(e.message));
+  const handleJoinRoom = (room) => {
+    setJoinError("");
+
+    if (room.isPrivate) {
+      setSelectedRoom(room);
+      setShowJoinModal(true);
+    } else {
+      joinRoom(room.id);
+    }
   };
 
-  const handleCreateRoom = () => {
-    const name = prompt("Enter room name:");
-    if (!name) return;
+  const joinRoom = async (roomId, password) => {
+    try {
+      const options = {
+        method: "POST"
+      };
 
-    fetch(`${API_URL}?name=${encodeURIComponent(name)}&capacity=10&isPrivate=false`, {
+      if (password) {
+        options.headers = { "Content-Type": "application/json" };
+        options.body = JSON.stringify({ password });
+      }
+
+      const response = await fetch(`${API_URL}/${roomId}/join`, options);
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to join room");
+      }
+
+      navigate(`/room/${roomId}`);
+    } catch (err) {
+      setJoinError(err.message);
+    }
+  };
+
+
+
+  const handleCreateRoom = ({ name, capacity, isPrivate, password }) => {
+    if (!name.trim()) {
+      alert("Room name is required");
+      return;
+    }
+
+    fetch(API_URL, {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name,
+        capacity,
+        isPrivate,
+        password
+      })
     })
       .then((r) => {
         if (!r.ok) throw new Error("Failed to create room");
         return r.json();
       })
-      .then((newRoom) => navigate(`/room/${newRoom.id}`))
+      .then((newRoom) => {
+        setShowCreateModal(false);
+        navigate(`/room/${newRoom.id}`);
+      })
       .catch((err) => alert(err.message));
   };
+
 
 
   // === Search Filter ===
@@ -60,7 +110,7 @@ function PartyRoomList() {
       <div className="partyrooms-section">
         <h2>Party Rooms</h2>
         <div className="buttons">
-          <button className="main-button" onClick={handleCreateRoom}>
+          <button className="main-button" onClick={ () => setShowCreateModal(true) }>
             Create Room
           </button>
         </div>
@@ -82,7 +132,7 @@ function PartyRoomList() {
                 <li key={room.id}>
                   <button
                     className="join-room-button"
-                    onClick={() => handleJoinRoom(room.id)}
+                    onClick={() => handleJoinRoom(room)}
                   >
                     <strong>{room.name}</strong> — {room.members.length}/
                     {room.capacity} {room.isPrivate ? "🔒" : ""}
@@ -104,6 +154,25 @@ function PartyRoomList() {
           ))}
         </div>
       </div>
+      <CreateRoomModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onCreate={handleCreateRoom}
+      />
+      <JoinRoomModal
+        isOpen={showJoinModal}
+        roomName={selectedRoom?.name}
+        error={joinError}
+        onClose={() => {
+          setShowJoinModal(false);
+          setSelectedRoom(null);
+          setJoinError("");
+        }}
+        onSubmit={(password) => {
+          joinRoom(selectedRoom.id, password);
+        }}
+      />
+
     </div>
   );
 }

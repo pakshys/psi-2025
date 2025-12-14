@@ -40,7 +40,11 @@ public class PartyRoomService
   }
 
   // Create a new room
-  public async Task<PartyRoom> CreateAsync(string name, int capacity = 10, bool isPrivate = false)
+  public async Task<PartyRoom> CreateAsync(
+    string name,
+    int capacity,
+    bool isPrivate,
+    string? password)
   {
     if (string.IsNullOrWhiteSpace(name))
       throw new ArgumentException("Party room name cannot be empty.");
@@ -48,11 +52,15 @@ public class PartyRoomService
     if (capacity <= 0)
       throw new ArgumentException("Party room capacity must be greater than zero.");
 
+    if (isPrivate && string.IsNullOrWhiteSpace(password))
+      throw new ArgumentException("Private rooms require a password");
+
     var partyRoom = new PartyRoom
     {
       Name = name,
       Capacity = capacity,
-      IsPrivate = isPrivate
+      IsPrivate = isPrivate,
+      PasswordHash = isPrivate ? PasswordHelper.Hash(password!) : null
     };
 
     _context.PartyRooms.Add(partyRoom);
@@ -63,9 +71,20 @@ public class PartyRoomService
   }
 
   // Join a room
-  public async Task JoinAsync(int id)
+  public async Task JoinAsync(int id, string? password)
   {
     var room = await GetByIdAsync(id); // Will throw NotFoundException if not found
+
+    if (room.IsPrivate)
+    {
+      if (string.IsNullOrWhiteSpace(password))
+      {
+        throw new UnauthorizedAccessException("Password required");
+      }
+
+      if (!PasswordHelper.Verify(room.PasswordHash!, password))
+        throw new UnauthorizedAccessException("Invalid password");
+    }
 
     var currentCount = room.Members?.Count ?? 0;
     if (currentCount >= room.Capacity)
