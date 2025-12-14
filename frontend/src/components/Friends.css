@@ -13,14 +13,36 @@
   );
   color: #fff;
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  gap: 2rem;
+  gap: 1.5rem;
+}
+
+/* === Top Right Button === */
+.top-right {
+  position: absolute;
+  top: 2rem;
+  right: 2rem;
+}
+
+.login-link {
+  background: transparent;
+  border: none;
+  color: #91ffc1;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  transition: color 0.3s ease;
+}
+
+.login-link:hover {
+  color: #fff;
 }
 
 /* === Header === */
 .friends-title {
-  font-size: 2.2rem;
+  font-size: 2.5rem;
   color: #91ffc1;
   text-shadow: 0 0 12px rgba(145, 255, 193, 0.6);
+  margin-bottom: 0.5rem;
 }
 
 /* === Input & Actions === */
@@ -29,7 +51,7 @@
   gap: 1rem;
   align-items: center;
   background: rgba(25, 25, 25, 0.65);
-  padding: 1rem 1.5rem;
+  padding: 1.2rem 1.5rem;
   border-radius: 16px;
   box-shadow: 0 0 20px rgba(255, 45, 187, 0.3);
   width: 100%;
@@ -45,6 +67,11 @@
   background: rgba(255, 255, 255, 0.1);
   color: white;
   outline: none;
+  font-size: 1rem;
+}
+
+.friends-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .friends-btn {
@@ -55,9 +82,11 @@
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.3s ease;
+  font-weight: 600;
+  font-size: 1rem;
 }
 
-.friends-btn:hover {
+.friends-btn:hover:not(:disabled) {
   background: linear-gradient(135deg, #ff4fc5, #ff78d3);
   box-shadow: 0 0 15px rgba(255, 45, 187, 0.7);
 }
@@ -67,45 +96,87 @@
   cursor: not-allowed;
 }
 
-/* === Subtitles === */
-.friends-subtitle {
-  font-size: 1.4rem;
-  color: #ffb7e8;
-  margin-top: 1.5rem;
+/* === Messages === */
+.friends-success {
+  color: #91ffc1;
+  background: rgba(145, 255, 193, 0.15);
+  border: 1px solid rgba(145, 255, 193, 0.4);
+  padding: 10px 12px;
+  border-radius: 10px;
+  margin: 0;
+  font-size: 0.95rem;
   text-align: center;
+  max-width: 600px;
+  width: 100%;
 }
 
-/* === Cards Grid === */
+.friends-error {
+  color: #ff91b1;
+  background: rgba(255, 0, 76, 0.2);
+  border: 1px solid rgba(255, 0, 76, 0.4);
+  padding: 10px 12px;
+  border-radius: 10px;
+  margin: 0;
+  font-size: 0.95rem;
+  text-align: center;
+  max-width: 600px;
+  width: 100%;
+}
+
+/* === Two Column Layout === */
+.friends-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  width: 100%;
+  max-width: 1400px;
+  align-items: start;
+}
+
+.friends-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* === Subtitles === */
+.friends-subtitle {
+  font-size: 1.5rem;
+  color: #ffb7e8;
+  margin: 0.5rem 0;
+  text-align: left;
+}
+
+/* === Cards List === */
 .friends-list {
   list-style: none;
   padding: 0;
-  margin: 1rem 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 1.2rem;
-  width: 100%;
-  max-width: 960px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 /* === Friend Card === */
 .friends-card {
-  background: rgba(25, 25, 25, 0.7);
+  background: rgba(25, 25, 25, 0.75);
   border-radius: 14px;
-  padding: 1rem 1.2rem;
+  padding: 1.2rem;
   box-shadow: 0 0 20px rgba(72, 149, 239, 0.3);
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
-  transition: transform 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .friends-card:hover {
   transform: translateY(-4px);
+  box-shadow: 0 0 25px rgba(145, 255, 193, 0.4);
 }
 
 .friends-name {
   font-weight: 600;
-  font-size: 1.1rem;
+  font-size: 1.15rem;
   color: #91ffc1;
 }
 
@@ -115,6 +186,7 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 /* === Card Buttons === */
@@ -122,6 +194,7 @@
   display: flex;
   gap: 8px;
   margin-top: 0.4rem;
+  flex-wrap: wrap;
 }
 
 .friends-btn-ghost {
@@ -132,38 +205,58 @@
   padding: 0.6rem 1.2rem;
   cursor: pointer;
   transition: all 0.3s ease;
+  font-size: 0.9rem;
 }
 
-.friends-btn-ghost:hover {
+.friends-btn-ghost:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.2);
   box-shadow: 0 0 10px rgba(145, 255, 193, 0.4);
+}
+
+.friends-btn-ghost:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* === States === */
 .friends-empty {
   color: #bbb;
   font-size: 1rem;
-  padding: 8px 0;
+  padding: 1.5rem;
   text-align: center;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
 }
 
-.friends-error {
-  color: #ff91b1;
-  background: rgba(255, 0, 76, 0.2);
-  border: 1px solid rgba(255, 0, 76, 0.4);
-  padding: 10px 12px;
-  border-radius: 10px;
-  margin: 0.6rem 0;
-  font-size: 0.9rem;
-  text-align: center;
-  max-width: 600px;
+/* === Responsive === */
+@media (max-width: 1024px) {
+  .friends-columns {
+    grid-template-columns: 1fr;
+    max-width: 700px;
+  }
 }
 
-/* === Scrollbar === */
-.friends-list::-webkit-scrollbar {
-  width: 6px;
-}
-.friends-list::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, #ff2dbb, #cf49c9);
-  border-radius: 10px;
+@media (max-width: 768px) {
+  .friends-wrap {
+    padding: 2rem 1rem;
+  }
+  
+  .friends-title {
+    font-size: 2rem;
+  }
+  
+  .friends-actions {
+    flex-direction: column;
+    padding: 1rem;
+  }
+  
+  .friends-input,
+  .friends-btn {
+    width: 100%;
+  }
+  
+  .top-right {
+    top: 1rem;
+    right: 1rem;
+  }
 }

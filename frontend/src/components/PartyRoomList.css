@@ -1,16 +1,28 @@
-/* === Layout === */
+/* Page wrapper: vertical + horizontal centering */
 .partyroom-page {
   display: flex;
-  flex-direction: row;
-  justify-content: center;
-  align-items: center;
-  gap: 3rem;
-  padding: 3rem;
+  justify-content: center; /* horizontal */
+  align-items: center;     /* vertical */
   min-height: 100vh;
-  background: radial-gradient(circle at right bottom, rgba(72, 149, 239, 0.2), rgba(217, 35, 159, 0.6) 60%, #121212 100%);
-  color: #fff;
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  padding: 3rem;
+  background: radial-gradient(
+    circle at right bottom,
+    rgba(72, 149, 239, 0.2),
+    rgba(217, 35, 159, 0.6) 60%,
+    #121212 100%
+  );
 }
+
+/* Row: left/right boxes */
+.partyroom-layout {
+  display: flex;
+  flex-direction: row;
+  gap: 3rem;
+  max-width: 1200px;
+  width: 100%;
+  align-items: center; /* keeps each box own height */
+}
+
 
 /* === Party Rooms === */
 .partyrooms-section {
@@ -26,6 +38,9 @@
   justify-content: center;
   align-items: center;
   text-align: center;
+  max-width: 800px;
+  min-width: 550px;
+  width: 100%;
 }
 
 .partyrooms-section h2 {
@@ -103,6 +118,9 @@ ul {
 /* === Friend Rooms === */
 .friendrooms-section {
   flex: 0.8;
+  max-width: 500px;
+  width: 100%;
+  min-width: 350px;
   background: rgba(25, 25, 25, 0.65);
   padding: 1.5rem 2rem;
   border-radius: 20px;

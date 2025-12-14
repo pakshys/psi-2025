@@ -1,5 +1,23 @@
+/* Login and Register links - ensure they have proper styling */
+.login-link, .register-link {
+    color: #91ffc1;
+    font-size: 1.1rem;
+    text-decoration: none;
+    border: 2px solid #91ffc1;
+    padding: 0.8rem 1rem;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+    display: inline-block;
+}
+
+.login-link:hover, .register-link:hover {
+    background: #91ffc1;
+    color: #121212;
+}
+
+/* Profile button - matching login/register style from App.css */
 .profile-button {
-    background: transparent;        /* see-through */
+    background: transparent;
     color: #91ffc1;
     border: 2px solid #91ffc1;
     padding: 0.8rem 1rem;
@@ -7,8 +25,6 @@
     font-size: 1.1rem;
     cursor: pointer;
     transition: all 0.3s ease;
-
-    /* remove outlines and shadows on focus/active */
     outline: none;
     box-shadow: none;
 }
@@ -22,28 +38,32 @@
 .profile-button:active {
     outline: none;
     box-shadow: none;
-    background: #91ffc1; /* maintain hover color on focus/click */
+    background: #91ffc1;
     color: #121212;
 }
 
+/* Profile container for positioning dropdown */
+.profile-container {
+    position: relative;
+}
 
-/* dropdown styling */
+/* Dropdown styling */
 .dropdown {
     position: absolute;
     top: 110%;
     right: 0;
-    background: transparent;
+    background: rgba(18, 18, 18, 0.95);
     border: 1px solid #91ffc1;
     border-radius: 8px;
     min-width: 150px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
     z-index: 1000;
 }
 
 .dropdown-item {
     width: 100%;
     padding: 0.6rem 1rem;
-    background: transparent; /* see-through */
+    background: transparent;
     border: none;
     text-align: left;
     color: #91ffc1;
@@ -52,7 +72,7 @@
     transition: background 0.2s ease;
 }
 
-    .dropdown-item:hover {
-     background: #91ffc1;
-     color: #121212;
-    }
+.dropdown-item:hover {
+    background: #91ffc1;
+    color: #121212;
+}

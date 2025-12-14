@@ -1,7 +1,15 @@
 import React, { useState } from "react";
 import "./Login.css";
+import { useNavigate } from "react-router-dom";
+
 
 export default function Login() {
+    const navigate = useNavigate();
+    const handleBack = () => {
+    navigate("/"); // go to main page
+    };
+
+
     const [formData, setFormData] = useState({
         login: "",
         password: "",
@@ -57,49 +65,58 @@ export default function Login() {
         <div className="login-page">
             <div className="login-form-section">
                 <div className="login-form">
-                    <h1>Hello Again!</h1>
-                    <p>Welcome back! Please login to your account.</p>
+                <h1>Hello Again!</h1>
+                <p>Welcome back! Please login to your account.</p>
 
-                    <form onSubmit={handleSubmit}>
+                <form onSubmit={handleSubmit}>
+                    <input
+                    type="text"
+                    name="login"
+                    className="login-input"
+                    placeholder="Email or Username"
+                    value={formData.login}
+                    onChange={handleChange}
+                    required
+                    />
+                    <input
+                    type="password"
+                    name="password"
+                    className="login-input"
+                    placeholder="Password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    required
+                    />
+                    <div style={{ marginBottom: "10px" }}>
+                    <label>
                         <input
-                            type="text"
-                            name="login"
-                            className="login-input"
-                            placeholder="Email or Username"
-                            value={formData.login}
-                            onChange={handleChange}
-                            required
-                        />
-                        <input
-                            type="password"
-                            name="password"
-                            className="login-input"
-                            placeholder="Password"
-                            value={formData.password}
-                            onChange={handleChange}
-                            required
-                        />
-                        <div style={{ marginBottom: "10px" }}>
-                            <label>
-                                <input
-                                    type="checkbox"
-                                    name="rememberMe"
-                                    checked={formData.rememberMe}
-                                    onChange={handleChange}
-                                />{" "}
-                                Remember me
-                            </label>
-                        </div>
+                        type="checkbox"
+                        name="rememberMe"
+                        checked={formData.rememberMe}
+                        onChange={handleChange}
+                        />{" "}
+                        Remember me
+                    </label>
+                    </div>
 
-                        {error && <p className="error-message">{error}</p>}
-                        {message && <p className="success-message">{message}</p>}
+                    {error && <p className="error-message">{error}</p>}
+                    {message && <p className="success-message">{message}</p>}
 
-                        <button type="submit" className="login-btn">Sign In</button>
-                    </form>
+                    <button type="submit" className="login-btn">Sign In</button>
+                </form>
 
-                    <p className="account-link">
-                        Don't have an account? <a href="/register">Register</a>
-                    </p>
+                <p className="account-link">
+                    Don't have an account? <a href="/register">Register</a>
+                </p>
+
+                {/* Back link below account link */}
+                <button
+                    type="button"
+                    className="back-link"
+                    onClick={handleBack}
+                >
+                    ← Back
+                </button>
                 </div>
 
                 {/* Background shape */}
