@@ -13,6 +13,9 @@ public class RoomStateService : IRoomStateService
     // Active room users
     private readonly ConcurrentDictionary<int, ConcurrentDictionary<string, byte>> _roomUsers = new();
 
+    // Dictionary to store when a room became empty
+    private readonly ConcurrentDictionary<int, DateTime> _emptyRoomTimestamps = new();
+
 
     // === Playback state ===
     public bool TryGetPlayback(string roomId, out RoomPlaybackState state)
@@ -48,6 +51,8 @@ public class RoomStateService : IRoomStateService
     {
         EnsureRoomExists(roomId);
         _roomUsers[roomId].TryAdd(userId, 0);
+
+        _emptyRoomTimestamps.TryRemove(roomId, out _);
     }
 
     public bool RemoveUserFromRoom(int roomId, string userId)
@@ -55,7 +60,15 @@ public class RoomStateService : IRoomStateService
         if (!_roomUsers.TryGetValue(roomId, out var users))
             return false;
 
-        return users.TryRemove(userId, out _);
+        var removed = users.TryRemove(userId, out _);
+
+        if (removed && users.IsEmpty)
+        {
+            // Mark the room as empty with the current time
+            _emptyRoomTimestamps[roomId] = DateTime.UtcNow;
+        }
+
+        return removed;
     }
 
     public List<string> GetUsersInRoom(int roomId)
@@ -87,4 +100,15 @@ public class RoomStateService : IRoomStateService
         return _roomUsers.ContainsKey(roomId);
     }
 
+    public IReadOnlyDictionary<int, DateTime> GetEmptyRooms()
+    {
+      return _emptyRoomTimestamps;
+    }
+
+    public void DeleteRoom(int roomId)
+    {
+      _roomUsers.TryRemove(roomId, out _);
+      _currentRoomStates.TryRemove(roomId.ToString(), out _);
+      _emptyRoomTimestamps.TryRemove(roomId, out _);
+    }
 }

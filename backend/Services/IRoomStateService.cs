@@ -13,4 +13,6 @@ public interface IRoomStateService
     List<int> RemoveUserFromAllRooms(string userId);
     bool RoomExists(int roomId);
 
+    IReadOnlyDictionary<int, DateTime> GetEmptyRooms();
+    void DeleteRoom(int roomId);
 }

@@ -34,6 +34,10 @@ function PartyRoomList() {
   }, []);
 
   // === Actions ===
+  const handleBackToMain = () => {
+    navigate("/");
+  };
+
   const handleJoinRoom = (room) => {
     setJoinError("");
 
@@ -107,11 +111,22 @@ function PartyRoomList() {
 
   // === UI ===
   return (
-    <div className="partyroom-page">
+  <div className="partyroom-page">
+    {/* Row container */}
+    <div className="partyroom-layout">
+      
+      {/* Left: Party Rooms */}
       <div className="partyrooms-section">
         <h2>Party Rooms</h2>
+
         <div className="buttons">
-          <button className="main-button" onClick={ () => setShowCreateModal(true) }>
+          <button className="main-button" onClick={handleBackToMain}>
+            ← Back
+          </button>
+          <button
+            className="main-button"
+            onClick={() => setShowCreateModal(true)}
+          >
             Create Room
           </button>
         </div>
@@ -145,37 +160,39 @@ function PartyRoomList() {
         </div>
       </div>
 
+      {/* Right: Friends */}
       <div className="friendrooms-section">
         <h3>Friend Rooms:</h3>
         <div className="friend-grid">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="friend-circle">
-              <span>Friend {i}</span>
+              Friend {i}
             </div>
           ))}
         </div>
       </div>
-      <CreateRoomModal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        onCreate={handleCreateRoom}
-      />
-      <JoinRoomModal
-        isOpen={showJoinModal}
-        roomName={selectedRoom?.name}
-        error={joinError}
-        onClose={() => {
-          setShowJoinModal(false);
-          setSelectedRoom(null);
-          setJoinError("");
-        }}
-        onSubmit={(password) => {
-          joinRoom(selectedRoom.id, password);
-        }}
-      />
 
     </div>
-  );
+
+    {/* Modals */}
+    <CreateRoomModal
+      isOpen={showCreateModal}
+      onClose={() => setShowCreateModal(false)}
+      onCreate={handleCreateRoom}
+    />
+    <JoinRoomModal
+      isOpen={showJoinModal}
+      roomName={selectedRoom?.name}
+      error={joinError}
+      onClose={() => {
+        setShowJoinModal(false);
+        setSelectedRoom(null);
+        setJoinError("");
+      }}
+      onSubmit={(password) => joinRoom(selectedRoom.id, password)}
+    />
+  </div>
+);
 }
 
 export default PartyRoomList;

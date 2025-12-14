@@ -103,6 +103,41 @@
   text-decoration: underline;
 }
 
+.back-link {
+    display: inline-block;
+    margin-top: 0.5rem; /* small gap below account link */
+    margin-bottom: 1.5rem; /* small gap below account link */
+    color: #91ffc1;
+    font-size: 1.1rem;
+    text-decoration: none;
+    border: 2px solid #91ffc1;
+    padding: 0.8rem 1rem;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    background: transparent;
+
+    /* remove outlines and shadows on focus/active */
+    outline: none;
+    box-shadow: none;
+    text-align: center;
+}
+
+.back-link:hover {
+    background: #91ffc1;
+    color: #121212;
+}
+
+.back-link:focus,
+.back-link:active {
+    outline: none;
+    box-shadow: none;
+    background: #91ffc1; /* maintain hover color on focus/click */
+    color: #121212;
+}
+
+
+
 /* Right background placeholder */
 .placeholder {
   position: absolute;
@@ -110,7 +145,7 @@
   left: 50%;
   transform: translate(-50%, -50%);
   width: 620px;  /* slightly bigger to allow for longer messages */
-  min-height: 580px; /* allow growth */
+  min-height: 680px; /* allow growth */
   background: linear-gradient(135deg, rgba(217, 35, 159, 0.15), rgba(145, 255, 193, 0.1));
   border-radius: 24px;
   box-shadow: 0 0 80px rgba(217, 35, 159, 0.25);

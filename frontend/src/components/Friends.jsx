@@ -161,9 +161,10 @@ export default function Friends() {
         }
     }
 
+    
     return (
         <div className="friends-wrap">
-            {/* ✅ Return button (identical style to Profile/Login) */}
+            {/* Return button */}
             <div className="top-right">
                 <button
                     className="login-link"
@@ -196,95 +197,104 @@ export default function Friends() {
             </div>
 
             {err && <div className="friends-error">{err}</div>}
-            {okMsg && <div className="friends-empty">{okMsg}</div>}
+            {okMsg && <div className="friends-success">{okMsg}</div>}
 
-            <h2 className="friends-subtitle">Pending requests (incoming)</h2>
-            {pending.length === 0 ? (
-                <div className="friends-empty">There are no pending requests.</div>
-            ) : (
-                <ul className="friends-list">
-                    {pending.map((p) => (
-                        <li key={p.friendshipId} className="friends-card">
-                            <div className="friends-name">{p.otherUserName}</div>
-                            <div className="friends-meta">
-                                <span>Status: {p.status}</span>
-                                <span>•</span>
-                                <span>{new Date(p.createdAt).toLocaleString()}</span>
-                            </div>
-                            <div className="friends-card-actions">
-                                <button
-                                    className="friends-btn"
-                                    onClick={() => onAccept(p.friendshipId)}
-                                    disabled={loading}
-                                >
-                                    Accept
-                                </button>
-                                <button
-                                    className="friends-btn-ghost"
-                                    onClick={() => onReject(p.friendshipId)}
-                                    disabled={loading}
-                                >
-                                    Reject
-                                </button>
-                            </div>
-                        </li>
-                    ))}
-                </ul>
-            )}
+            {/* Two-column layout */}
+            <div className="friends-columns">
+                {/* LEFT COLUMN: Accepted Friends */}
+                <div className="friends-column">
+                    <h2 className="friends-subtitle">Friends (accepted)</h2>
+                    {accepted.length === 0 ? (
+                        <div className="friends-empty">There are currently 0 friends.</div>
+                    ) : (
+                        <ul className="friends-list">
+                            {accepted.map((f) => (
+                                <li key={f.friendshipId} className="friends-card">
+                                    <div className="friends-name">{f.otherUserName}</div>
+                                    <div className="friends-meta">
+                                        <span>Status: {f.status}</span>
+                                        <span>•</span>
+                                        <span>{new Date(f.createdAt).toLocaleString()}</span>
+                                    </div>
+                                    <div className="friends-card-actions">
+                                        <button
+                                            className="friends-btn-ghost"
+                                            onClick={() => onRemove(f.friendshipId)}
+                                            disabled={loading}
+                                        >
+                                            Remove
+                                        </button>
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
 
-            <h2 className="friends-subtitle">Sent requests (outgoing)</h2>
-            {outgoing.length === 0 ? (
-                <div className="friends-empty">You have no sent requests.</div>
-            ) : (
-                <ul className="friends-list">
-                    {outgoing.map((o) => (
-                        <li key={o.friendshipId} className="friends-card">
-                            <div className="friends-name">{o.otherUserName}</div>
-                            <div className="friends-meta">
-                                <span>Status: {o.status}</span>
-                                <span>•</span>
-                                <span>{new Date(o.createdAt).toLocaleString()}</span>
-                            </div>
-                            <div className="friends-card-actions">
-                                <button
-                                    className="friends-btn-ghost"
-                                    onClick={() => onCancel(o.friendshipId)}
-                                    disabled={loading}
-                                >
-                                    Cancel
-                                </button>
-                            </div>
-                        </li>
-                    ))}
-                </ul>
-            )}
+                {/* RIGHT COLUMN: Pending & Outgoing */}
+                <div className="friends-column">
+                    <h2 className="friends-subtitle">Pending requests (incoming)</h2>
+                    {pending.length === 0 ? (
+                        <div className="friends-empty">There are no pending requests.</div>
+                    ) : (
+                        <ul className="friends-list">
+                            {pending.map((p) => (
+                                <li key={p.friendshipId} className="friends-card">
+                                    <div className="friends-name">{p.otherUserName}</div>
+                                    <div className="friends-meta">
+                                        <span>Status: {p.status}</span>
+                                        <span>•</span>
+                                        <span>{new Date(p.createdAt).toLocaleString()}</span>
+                                    </div>
+                                    <div className="friends-card-actions">
+                                        <button
+                                            className="friends-btn"
+                                            onClick={() => onAccept(p.friendshipId)}
+                                            disabled={loading}
+                                        >
+                                            Accept
+                                        </button>
+                                        <button
+                                            className="friends-btn-ghost"
+                                            onClick={() => onReject(p.friendshipId)}
+                                            disabled={loading}
+                                        >
+                                            Reject
+                                        </button>
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
 
-            <h2 className="friends-subtitle">Friends (accepted)</h2>
-            {accepted.length === 0 ? (
-                <div className="friends-empty">There are currently 0 friends.</div>
-            ) : (
-                <ul className="friends-list">
-                    {accepted.map((f) => (
-                        <li key={f.friendshipId} className="friends-card">
-                            <div className="friends-name">{f.otherUserName}</div>
-                            <div className="friends-meta">
-                                <span>Status: {f.status}</span>
-                                <span>•</span>
-                                <span>{new Date(f.createdAt).toLocaleString()}</span>
-                            </div>
-                            <div className="friends-card-actions">
-                                <button
-                                    className="friends-btn-ghost"
-                                    onClick={() => onRemove(f.friendshipId)}
-                                    disabled={loading}
-                                >
-                                    Remove
-                                </button>
-                            </div>
-                        </li>
-                    ))}
-                </ul>
-            )}
+                    <h2 className="friends-subtitle">Sent requests (outgoing)</h2>
+                    {outgoing.length === 0 ? (
+                        <div className="friends-empty">You have no sent requests.</div>
+                    ) : (
+                        <ul className="friends-list">
+                            {outgoing.map((o) => (
+                                <li key={o.friendshipId} className="friends-card">
+                                    <div className="friends-name">{o.otherUserName}</div>
+                                    <div className="friends-meta">
+                                        <span>Status: {o.status}</span>
+                                        <span>•</span>
+                                        <span>{new Date(o.createdAt).toLocaleString()}</span>
+                                    </div>
+                                    <div className="friends-card-actions">
+                                        <button
+                                            className="friends-btn-ghost"
+                                            onClick={() => onCancel(o.friendshipId)}
+                                            disabled={loading}
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+            </div>
         </div>
     );
 }

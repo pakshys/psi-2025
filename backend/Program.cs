@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Hosting;
 using backend.Extensions;
 using backend.Database;
 using backend.Models;
@@ -85,6 +86,8 @@ builder.Services.AddScoped<ITrackQueueService, TrackQueueService>();
 
 builder.Services.AddSingleton<IRoomStateService, RoomStateService>();
 builder.Services.AddSingleton<IVoteService, VoteService>();
+builder.Services.AddScoped<IRoomPersistenceService, RoomPersistenceService>();
+builder.Services.AddHostedService<RoomCleanupService>();
 
 // Bind the YouTube settings
 builder.Services.Configure<YouTubeSettings>(builder.Configuration.GetSection("YouTubeApi"));
