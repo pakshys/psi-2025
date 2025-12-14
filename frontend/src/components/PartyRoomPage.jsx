@@ -52,6 +52,7 @@ export default function PartyRoomPage() {
   //Scoll state
   const chatRef = useRef(null);
   const shouldAutoScrollRef = useRef(true);
+  const suppressBroadcastRef = useRef(false);
 
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
@@ -353,39 +354,48 @@ export default function PartyRoomPage() {
             if (!p || !connectionRef.current) return;
             const time = p.getCurrentTime();
 
-            // If we transition to CUED (5), and we have a pendingVideo flagged for autoplay, start playback.
+            // Handle CUED state (5) for pending autoplay
             if (typeof window !== "undefined" && window.YT && event.data === window.YT.PlayerState.CUED) {
               const pending = pendingVideoRef.current;
               if (pending?.autoPlay) {
                 try {
-                  // If start position provided, seek just to be safe
+                  // Seek to start position if specified
                   if (pending.seek != null) {
+                    suppressBroadcastRef.current = true; // suppress broadcasts during seek
                     p.seekTo(pending.seek, true);
                   }
                   p.playVideo();
-                } catch {}
-                // clear pending
+                } catch { }
+                // Clear pending video
                 pendingVideoRef.current = null;
+
+                // Re-enable broadcasting after a short delay to avoid false PAUSE
+                setTimeout(() => {
+                  suppressBroadcastRef.current = false;
+                }, 500);
               }
             }
 
-            // YouTube states: 1 = playing, 2 = paused, 0 = ended
-            if (event.data === window.YT.PlayerState.PLAYING) {
-              connectionRef.current.invoke("Play", roomId, time).catch(() => { });
-            } else if (event.data === window.YT.PlayerState.PAUSED) {
-              connectionRef.current.invoke("Pause", roomId, time).catch(() => { });
-            } else if (event.data === window.YT.PlayerState.ENDED) {
-              // Debounce multiple ENDED events
+            // Only broadcast Play/Pause if not suppressed
+            if (!suppressBroadcastRef.current) {
+              if (event.data === window.YT.PlayerState.PLAYING) {
+                connectionRef.current.invoke("Play", roomId, time).catch(() => { });
+              } else if (event.data === window.YT.PlayerState.PAUSED) {
+                connectionRef.current.invoke("Pause", roomId, time).catch(() => { });
+              }
+            }
+
+            // Handle video ended
+            if (event.data === window.YT.PlayerState.ENDED) {
               const now = Date.now();
-              if (now - lastEndedRef.current < 2000) return;
+              if (now - lastEndedRef.current < 2000) return; // debounce multiple ENDED events
               lastEndedRef.current = now;
 
-              // Ask server to advance the queue and start the next track
               try {
                 if (connectionRef.current && connectionRef.current.state === signalR.HubConnectionState.Connected) {
                   connectionRef.current.invoke("SkipTrack", parseInt(roomId)).catch(() => { });
                 }
-              } catch {}
+              } catch { }
             }
           },
         },
