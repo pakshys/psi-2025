@@ -89,7 +89,10 @@ namespace backend.Hubs
       {
         double effectiveTime = state.CurrentTime;
         if (state.IsPlaying)
+        {
           effectiveTime += (DateTime.UtcNow - state.LastUpdatedUtc).TotalSeconds;
+          if (effectiveTime < 0) effectiveTime = 0;
+        }
 
         await Clients.Caller.SendAsync("SyncTime", new
         {
@@ -105,7 +108,7 @@ namespace backend.Hubs
     {
       string roomKey = roomId.ToString();
       var userId = Context.UserIdentifier;
-      
+
       if (string.IsNullOrEmpty(userId))
       {
         await Clients.Caller.SendAsync("Error", "UserIdentifier missing");
@@ -150,7 +153,7 @@ namespace backend.Hubs
         var state = new RoomPlaybackState(trackId, 0, true, now);
         _roomStateService.SetPlayback(roomKey, state);
 
-        // Notify clients
+        // Notify clients (include caller because server initiates playback change)
         await Clients.Group(roomKey).SendAsync("LoadVideo", trackId);
         await Clients.Group(roomKey).SendAsync("Play");
 
@@ -217,7 +220,7 @@ namespace backend.Hubs
       if (!_voteService.TryCastVote(roomId, userId, agree,
           out int yesVotes, out int totalVotes))
       {
-        return;          
+        return;
       }
 
       double participation = yesVotes / (double)Math.Max(1, totalMembers);
@@ -243,11 +246,65 @@ namespace backend.Hubs
           if (int.TryParse(roomId, out int rid)) await SkipTrack(rid);
           break;
         case "Play":
-          await Play(roomId);
+          await BroadcastPlay(roomId);
           break;
         case "Pause":
-          await Pause(roomId);
+          await BroadcastPause(roomId);
           break;
+      }
+    }
+
+    private async Task BroadcastPlay(string roomId, double? currentTime = null)
+    {
+      if (_roomStateService.TryGetPlayback(roomId, out var state))
+      {
+        var updated = state with
+        {
+          CurrentTime = currentTime ?? state.CurrentTime,
+          IsPlaying = true,
+          LastUpdatedUtc = DateTime.UtcNow
+        };
+
+        _roomStateService.SetPlayback(roomId, updated);
+
+        // Send to entire group so the vote-initiator also receives the update
+        await Clients.Group(roomId).SendAsync("SyncTime", new
+        {
+          videoId = updated.VideoId,
+          time = updated.CurrentTime,
+          isPlaying = true
+        });
+      }
+      else
+      {
+        await Clients.Group(roomId).SendAsync("Play");
+      }
+    }
+
+    private async Task BroadcastPause(string roomId, double? currentTime = null)
+    {
+      if (_roomStateService.TryGetPlayback(roomId, out var state))
+      {
+        var updated = state with
+        {
+          CurrentTime = currentTime ?? state.CurrentTime,
+          IsPlaying = false,
+          LastUpdatedUtc = DateTime.UtcNow
+        };
+
+        _roomStateService.SetPlayback(roomId, updated);
+
+        // Send to entire group so the vote-initiator also receives the update
+        await Clients.Group(roomId).SendAsync("SyncTime", new
+        {
+          videoId = updated.VideoId,
+          time = updated.CurrentTime,
+          isPlaying = false
+        });
+      }
+      else
+      {
+        await Clients.Group(roomId).SendAsync("Pause");
       }
     }
 
@@ -273,7 +330,7 @@ namespace backend.Hubs
 
         _roomStateService.SetPlayback(roomId, updated);
 
-        await Clients.Group(roomId).SendAsync("SyncTime", new
+        await Clients.OthersInGroup(roomId).SendAsync("SyncTime", new
         {
           videoId = updated.VideoId,
           time = updated.CurrentTime,
@@ -282,7 +339,7 @@ namespace backend.Hubs
       }
       else
       {
-        await Clients.Group(roomId).SendAsync("Play");
+        await Clients.OthersInGroup(roomId).SendAsync("Play");
       }
     }
 
@@ -299,7 +356,8 @@ namespace backend.Hubs
 
         _roomStateService.SetPlayback(roomId, updated);
 
-        await Clients.Group(roomId).SendAsync("SyncTime", new
+        // Broadcast to others only
+        await Clients.OthersInGroup(roomId).SendAsync("SyncTime", new
         {
           videoId = updated.VideoId,
           time = updated.CurrentTime,
@@ -308,7 +366,7 @@ namespace backend.Hubs
       }
       else
       {
-        await Clients.Group(roomId).SendAsync("Pause");
+        await Clients.OthersInGroup(roomId).SendAsync("Pause");
       }
     }
 
@@ -316,6 +374,8 @@ namespace backend.Hubs
     {
       if (_roomStateService.TryGetPlayback(roomId, out var state))
       {
+        if (Math.Abs(currentTime - state.CurrentTime) < 2) return;
+
         var updated = state with
         {
           CurrentTime = currentTime,
@@ -324,7 +384,7 @@ namespace backend.Hubs
 
         _roomStateService.SetPlayback(roomId, updated);
 
-        await Clients.Group(roomId).SendAsync("SyncTime", new
+        await Clients.OthersInGroup(roomId).SendAsync("SyncTime", new
         {
           videoId = updated.VideoId,
           time = updated.CurrentTime,
