@@ -31,6 +31,19 @@ public class UserProfileServiceTests
   }
 
   [Fact]
+  public async Task Constructor_WhenUploadDirectoryDoesNotExist_CreatesIt()
+  {
+      var uploadDir = Path.Combine(Directory.GetCurrentDirectory(), "Uploads");
+      if (Directory.Exists(uploadDir))
+          Directory.Delete(uploadDir, true);
+
+      var db = await GetDbContextAsync();
+      _ = new UserProfileService(db);
+
+      Assert.True(Directory.Exists(uploadDir));
+  }
+
+  [Fact]
   public async Task CreateOrUpdateAsync_WhenProfileDoesNotExist_CreatesProfile()
   {
     var db = await GetDbContextAsync();
@@ -136,6 +149,20 @@ public class UserProfileServiceTests
     var result = await service.UploadProfilePictureAsync(fileMock.Object);
 
     Assert.EndsWith("test.png", result);
+  }
+
+  [Fact]
+  public async Task UploadProfilePictureAsync_WhenFileIsEmpty_Throws()
+  {
+    var db = await GetDbContextAsync();
+    var service = new UserProfileService(db);
+
+    var fileMock = new Mock<IFormFile>();
+    fileMock.Setup(f => f.Length).Returns(0);
+
+    await Assert.ThrowsAsync<ArgumentException>(
+      () => service.UploadProfilePictureAsync(fileMock.Object)
+    );
   }
 
   [Fact]

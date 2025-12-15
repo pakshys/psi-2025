@@ -5,8 +5,24 @@ using System.Threading.Tasks;
 using backend.Database;
 using backend.Models;
 using backend.Services;
+using backend.Dtos;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
+
+internal sealed class FakeYouTubeMetadataService : IYouTubeMetadataService
+{
+    public Task<TrackDto> GetTrackDtoAsync(Track track)
+    {
+        return Task.FromResult(
+            new TrackDto(
+                TrackId: track.TrackId,
+                Position: track.Position,
+                Title: "Fake Title",
+                Creator: "Fake Creator"
+            )
+        );
+    }
+}
 
 public class TrackQueueServiceTests
 {
@@ -20,6 +36,11 @@ public class TrackQueueServiceTests
     return db;
   }
 
+  private TrackQueueService CreateService(ApplicationDbContext db)
+  {
+    return new TrackQueueService(db, new FakeYouTubeMetadataService());
+  }
+
   [Fact]
   public async Task EnqueueAsync_WithValidRoom_AddsTrack()
   {
@@ -28,13 +49,24 @@ public class TrackQueueServiceTests
     db.PartyRooms.Add(room);
     await db.SaveChangesAsync();
 
-    var service = new TrackQueueService(db);
+    var service = CreateService(db);
     await service.EnqueueAsync(room.Id, "track1");
 
     var tracks = db.Tracks.Where(t => t.PartyRoomId == room.Id).ToList();
     Assert.Single(tracks);
     Assert.Equal("track1", tracks[0].TrackId);
     Assert.Equal(0, tracks[0].Position);
+  }
+
+  [Fact]
+  public async Task EnqueueAsync_WhenRoomDoesNotExist_ThrowsKeyNotFound()
+  {
+      var db = await GetDbContextAsync();
+      var service = CreateService(db);
+
+      await Assert.ThrowsAsync<KeyNotFoundException>(
+          () => service.EnqueueAsync(999, "track1")
+      );
   }
 
   [Fact]
@@ -49,7 +81,7 @@ public class TrackQueueServiceTests
     db.Tracks.Add(new Track { PartyRoomId = room.Id, TrackId = "t2", Position = 1 });
     await db.SaveChangesAsync();
 
-    var service = new TrackQueueService(db);
+    var service = CreateService(db);
     var first = await service.DequeueAsync(room.Id);
 
     Assert.Equal("t1", first!.TrackId);
@@ -68,7 +100,7 @@ public class TrackQueueServiceTests
     db.PartyRooms.Add(room);
     await db.SaveChangesAsync();
 
-    var service = new TrackQueueService(db);
+    var service = CreateService(db);
     var result = await service.DequeueAsync(room.Id);
 
     Assert.Null(result);
@@ -86,7 +118,7 @@ public class TrackQueueServiceTests
     db.Tracks.Add(new Track { PartyRoomId = room.Id, TrackId = "peek2", Position = 1 });
     await db.SaveChangesAsync();
 
-    var service = new TrackQueueService(db);
+    var service = CreateService(db);
     var first = await service.PeekAsync(room.Id);
 
     Assert.Equal("peek1", first!.TrackId);
@@ -97,6 +129,20 @@ public class TrackQueueServiceTests
   }
 
   [Fact]
+  public async Task PeekAsync_WhenNoTracks_ReturnsNull()
+  {
+      var db = await GetDbContextAsync();
+      var room = new PartyRoom { Name = "Empty", Capacity = 5 };
+      db.PartyRooms.Add(room);
+      await db.SaveChangesAsync();
+
+      var service = CreateService(db);
+      var result = await service.PeekAsync(room.Id);
+
+      Assert.Null(result);
+  }
+
+  [Fact]
   public async Task GetTrackQueueAsync_WhenNoTracks_ReturnsPlaceholder()
   {
     var db = await GetDbContextAsync();
@@ -104,12 +150,35 @@ public class TrackQueueServiceTests
     db.PartyRooms.Add(room);
     await db.SaveChangesAsync();
 
-    var service = new TrackQueueService(db);
+    var service = CreateService(db);
 
     var queue = await service.GetTrackQueueAsync(room.Id);
 
     Assert.Single(queue);
     Assert.Equal("placeholder", queue[0].TrackId);
     Assert.Equal("No video loaded", queue[0].Title);
+  }
+
+  [Fact]
+  public async Task GetTrackQueueAsync_WhenTracksExist_ReturnsTrackDtos()
+  {
+      var db = await GetDbContextAsync();
+      var room = new PartyRoom { Name = "RoomWithTracks", Capacity = 5 };
+      db.PartyRooms.Add(room);
+      await db.SaveChangesAsync();
+
+      db.Tracks.AddRange(
+          new Track { PartyRoomId = room.Id, TrackId = "t1", Position = 0 },
+          new Track { PartyRoomId = room.Id, TrackId = "t2", Position = 1 }
+      );
+      await db.SaveChangesAsync();
+
+      var service = CreateService(db);
+      var queue = await service.GetTrackQueueAsync(room.Id);
+
+      Assert.Equal(2, queue.Count);
+      Assert.Equal("t1", queue[0].TrackId);
+      Assert.Equal("Fake Title", queue[0].Title);
+      Assert.Equal("Fake Creator", queue[0].Creator);
   }
 }

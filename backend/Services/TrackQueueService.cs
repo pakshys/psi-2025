@@ -2,23 +2,23 @@ using backend.Database;
 using backend.Extensions;
 using backend.Models;
 using backend.Dtos;
+using backend.Services;
 using Microsoft.EntityFrameworkCore;
 using Google.Apis.Services;
 using Google.Apis.YouTube.v3;
 using Microsoft.Extensions.Options;
-
 
 namespace backend.Services;
 
 public class TrackQueueService : ITrackQueueService
 {
     private readonly ApplicationDbContext _dbContext;
-    private readonly string _apiKey;
+    private readonly IYouTubeMetadataService _youTubeMetadataService;
 
-    public TrackQueueService(ApplicationDbContext dbContext, IOptions<YouTubeSettings> settings)
+    public TrackQueueService(ApplicationDbContext dbContext, IYouTubeMetadataService youtubeMetadataService)
     {
         _dbContext = dbContext;
-        _apiKey = settings.Value.ApiKey;
+        _youTubeMetadataService = youtubeMetadataService;
     }
 
     public async Task EnqueueAsync(int roomId, string trackId)
@@ -83,69 +83,20 @@ public class TrackQueueService : ITrackQueueService
             .OrderBy(p => p.Position)
             .ToListAsync();
 
-        var trackDtos = new List<TrackDto>();
-
-        // Initialize YouTube API
-        var youtubeService = new YouTubeService(new BaseClientService.Initializer()
-        {
-            ApiKey = _apiKey,
-            ApplicationName = "psi-2025"
-        });
-
         if (!tracks.Any())
         {
             // No videos in queue — return a placeholder
-            trackDtos.Add(new TrackDto(
-                TrackId: "placeholder",
-                Position: 0,
-                Title: "No video loaded",
-                Creator: ""
-            ));
-            return trackDtos;
+            return new List<TrackDto>
+            {
+                new TrackDto("placeholder", 0, "No video loaded", "")
+            };
         }
+
+        var trackDtos = new List<TrackDto>();
 
         foreach (var track in tracks)
         {
-            try
-            {
-                // Clean the TrackId: remove playlist/index params
-                var cleanTrackId = track.TrackId.Split('&')[0];
-
-                var videoRequest = youtubeService.Videos.List("snippet");
-                videoRequest.Id = cleanTrackId;
-                var response = await videoRequest.ExecuteAsync();
-
-                var video = response.Items.FirstOrDefault();
-                if (video != null)
-                {
-                    trackDtos.Add(new TrackDto(
-                        TrackId: track.TrackId,
-                        Position: track.Position,
-                        Title: video.Snippet.Title,
-                        Creator: video.Snippet.ChannelTitle
-                    ));
-                }
-                else
-                {
-                    // Video not found — show safe fallback
-                    trackDtos.Add(new TrackDto(
-                        TrackId: track.TrackId,
-                        Position: track.Position,
-                        Title: "Video unavailable",
-                        Creator: ""
-                    ));
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error fetching video {track.TrackId}: {ex.Message}");
-                trackDtos.Add(new TrackDto(
-                    TrackId: track.TrackId,
-                    Position: track.Position,
-                    Title: "Video unavailable",
-                    Creator: ""
-                ));
-            }
+            trackDtos.Add(await _youTubeMetadataService.GetTrackDtoAsync(track));
         }
 
         return trackDtos;

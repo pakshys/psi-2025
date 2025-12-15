@@ -73,6 +73,14 @@ namespace backend.Tests.Services
     }
 
     [Fact]
+    public void GetVoteAction_WhenVoteDoesNotExist_ReturnsNull()
+    {
+        var service = new VoteService();
+        var action = service.GetVoteAction("missing");
+        Assert.Null(action);
+    }
+
+    [Fact]
     public void CountVotes_ShouldReturnCorrectTotal()
     {
       string roomId = "room4";
@@ -86,6 +94,26 @@ namespace backend.Tests.Services
     }
 
     [Fact]
+    public void CountVotes_WhenVoteDoesNotExist_ReturnsZero()
+    {
+      var service = new VoteService();
+
+      var count = service.CountVotes("missing-room");
+
+      Assert.Equal(0, count);
+    }
+
+    [Fact]
+    public void CountYesVotes_WhenVoteDoesNotExist_ReturnsZero()
+    {
+      var service = new VoteService();
+
+      var yesCount = service.CountYesVotes("missing-room");
+
+      Assert.Equal(0, yesCount);
+    }
+
+    [Fact]
     public void RemoveVote_ShouldRemoveVoteSuccessfully()
     {
       string roomId = "room5";
@@ -94,6 +122,16 @@ namespace backend.Tests.Services
       Assert.True(_voteService.hasVote(roomId));
       Assert.True(_voteService.RemoveVote(roomId));
       Assert.False(_voteService.hasVote(roomId));
+    }
+
+    [Fact]
+    public void RemoveVote_WhenVoteDoesNotExist_ReturnsFalse()
+    {
+      var service = new VoteService();
+
+      var removed = service.RemoveVote("missing-room");
+
+      Assert.False(removed);
     }
 
     [Fact]
