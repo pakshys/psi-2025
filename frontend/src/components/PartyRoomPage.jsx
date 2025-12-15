@@ -10,11 +10,9 @@ const PLACEHOLDER_VIDEO = "cX9BSDR2vZ4";
 function extractYouTubeId(input) {
   if (!input) return null;
   const trimmed = input.trim();
-  // Try common URL forms first
   const urlRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?.*v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
   const match = trimmed.match(urlRegex);
   if (match) return match[1];
-  // Fallback if raw ID
   const idRegex = /^[a-zA-Z0-9_-]{11}$/;
   return idRegex.test(trimmed) ? trimmed : null;
 }
@@ -43,16 +41,20 @@ export default function PartyRoomPage() {
   const playerReadyRef = useRef(false);
 
   // UI state
-  const [playerReady, setPlayerReady] = useState(false); // used to drive UI
+  const [playerReady, setPlayerReady] = useState(false);
   const [bufferedEvents, setBufferedEvents] = useState([]);
   const pendingVideoRef = useRef(null);
   const isReloadRef = useRef(false);
   const lastEndedRef = useRef(0);
 
-  //Scoll state
+  // NEW: Track if we're syncing to prevent broadcast loops
+  const lastSyncTimeRef = useRef(0);
+  const isLocalActionRef = useRef(false);
+  const isApplyingRemoteRef = useRef(false);
+
+  //Scroll state
   const chatRef = useRef(null);
   const shouldAutoScrollRef = useRef(true);
-  const suppressBroadcastRef = useRef(false);
 
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
@@ -101,7 +103,6 @@ export default function PartyRoomPage() {
   const loadVideoSafely = useCallback((videoId, startSeconds = 0, autoPlay = true) => {
     const p = playerRef.current;
     if (!p) {
-      // If player not ready, remember pending
       pendingVideoRef.current = { videoId, seek: startSeconds, autoPlay };
       return;
     }
@@ -109,35 +110,37 @@ export default function PartyRoomPage() {
     const currentId = p.getVideoData()?.video_id;
     try {
       if (currentId !== videoId) {
-        // Cue (preloads) and rely on onStateChange(CUED) to kick off play
         pendingVideoRef.current = { videoId, seek: startSeconds, autoPlay };
-        // use cueVideoById to avoid trying to play while still buffering in an unstable state
+        // Mark sync timestamp
+        lastSyncTimeRef.current = Date.now();
+
         if (typeof p.cueVideoById === "function") {
           p.cueVideoById(videoId, startSeconds);
           setTimeout(() => {
             try {
-              p.playVideo();
+              if (autoPlay) p.playVideo();
             } catch { }
-          }, 200); // 200ms delay -- without this video does not autoplay after skip
+          }, 200);
         } else {
-          // fallback
           p.loadVideoById(videoId, startSeconds);
           setTimeout(() => {
             try {
-              p.playVideo();
+              if (autoPlay) p.playVideo();
             } catch { }
-          }, 200); // 200ms delay -- without this video does not autoplay after skip
+          }, 200);
         }
       } else {
         // Same video: seek and play/pause as requested
         const delta = Math.abs(p.getCurrentTime() - startSeconds);
-        if (delta > 2) p.seekTo(startSeconds, true);
+        if (delta > 2) {
+          lastSyncTimeRef.current = Date.now();
+          p.seekTo(startSeconds, true);
+        }
         if (autoPlay) p.playVideo();
         else p.pauseVideo();
         pendingVideoRef.current = null;
       }
     } catch (err) {
-      // keep pending if an error occurs
       pendingVideoRef.current = { videoId, seek: startSeconds, autoPlay };
       console.error("loadVideoSafely failed:", err);
     }
@@ -150,12 +153,16 @@ export default function PartyRoomPage() {
 
     const pending = pendingVideoRef.current;
     if (pending?.videoId) {
+      isApplyingRemoteRef.current = true;
+      setTimeout(() => { isApplyingRemoteRef.current = false; }, 1200);
       loadVideoSafely(pending.videoId, pending.seek ?? 0, pending.autoPlay ?? true);
     }
 
-    // Use current bufferedEvents snapshot then clear
     setBufferedEvents((events) => {
       if (!events || events.length === 0) return [];
+      isApplyingRemoteRef.current = true;
+      setTimeout(() => { isApplyingRemoteRef.current = false; }, 1200);
+
       events.forEach((event) => {
         switch (event.type) {
           case "load":
@@ -163,18 +170,21 @@ export default function PartyRoomPage() {
             break;
           case "seek":
             try {
-              if (p && typeof p.seekTo === "function") p.seekTo(event.time, true);
-            } catch {}
+              if (p && typeof p.seekTo === "function") {
+                lastSyncTimeRef.current = Date.now();
+                p.seekTo(event.time, true);
+              }
+            } catch { }
             break;
           case "play":
             try {
               if (p && typeof p.playVideo === "function") p.playVideo();
-            } catch {}
+            } catch { }
             break;
           case "pause":
             try {
               if (p && typeof p.pauseVideo === "function") p.pauseVideo();
-            } catch {}
+            } catch { }
             break;
           default:
             break;
@@ -204,6 +214,12 @@ export default function PartyRoomPage() {
         setBufferedEvents((prev) => [...prev, event]);
       } else {
         const p = playerRef.current;
+
+        isApplyingRemoteRef.current = true;
+        setTimeout(() => { isApplyingRemoteRef.current = false; }, 1200);
+
+        lastSyncTimeRef.current = Date.now(); // Mark sync timestamp
+
         switch (event.type) {
           case "load":
             loadVideoSafely(event.videoId, event.time ?? 0, true);
@@ -234,24 +250,46 @@ export default function PartyRoomPage() {
     window.addEventListener("beforeunload", handleUnload);
 
     conn.on("SyncTime", ({ videoId, time, isPlaying }) => {
+      isApplyingRemoteRef.current = true;
+      lastSyncTimeRef.current = Date.now();
+
+      // clear the flag after a short window to allow normal broadcasts again
+      // keep it slightly larger than your suppression in onStateChange (here 1200ms)
+      setTimeout(() => { isApplyingRemoteRef.current = false; }, 1200);
+
       if (!playerReadyRef.current || !playerRef.current) {
         pendingVideoRef.current = { videoId, seek: time, autoPlay: isPlaying };
         return;
       }
+
       const p = playerRef.current;
+
+      // Load video if different (loadVideoSafely already sets lastSyncTimeRef inside)
       if (videoId !== p.getVideoData()?.video_id) {
         loadVideoSafely(videoId, time ?? 0, isPlaying);
-      } else {
-        const delta = Math.abs(p.getCurrentTime() - (time ?? 0));
-        if (delta > 2) p.seekTo(time ?? 0, true);
-        if (isPlaying) p.playVideo();
-        else p.pauseVideo();
+        return;
       }
+
+      // 2. Only seek if delta is significant
+      const currentTime = p.getCurrentTime();
+      const delta = Math.abs(currentTime - (time ?? 0));
+      if (delta > 3) {
+        p.seekTo(time ?? 0, true);
+      }
+
+      // Only change play/pause if it differs
+      const playerState = p.getPlayerState();
+      const isPlayingNow = playerState === window.YT.PlayerState.PLAYING;
+
+      if (isPlaying && !isPlayingNow) p.playVideo();
+      else if (!isPlaying && isPlayingNow) p.pauseVideo();
+
+      // Keep lastSyncTimeRef updated
+      lastSyncTimeRef.current = Date.now();
     });
 
     conn.on("MemberListUpdated", (members) => setRoom((prev) => ({ ...prev, members })));
     conn.on("QueueUpdated", (_, queue) => setRoom((prev) => ({ ...prev, queue })));
-
 
     // Chat & votes
     conn.on("ReceiveMessage", (user, message) => setMessages((prev) => [...prev, { user, message }]));
@@ -272,7 +310,8 @@ export default function PartyRoomPage() {
         connectionRef.current &&
         playerRef.current &&
         playerReadyRef.current &&
-        playerRef.current.getPlayerState() === 1 // playing
+        playerRef.current.getPlayerState() === 1 && // playing
+        (Date.now() - lastSyncTimeRef.current) > 2000 // Don't sync if we recently received a sync
       ) {
         try {
           const currentTime = playerRef.current.getCurrentTime();
@@ -287,7 +326,6 @@ export default function PartyRoomPage() {
       .start()
       .then(async () => {
         console.log("Connected to SignalR hub");
-        // Wait for player to become ready (if not already)
         if (!playerReadyRef.current) {
           await new Promise((resolve) => {
             const check = setInterval(() => {
@@ -324,7 +362,6 @@ export default function PartyRoomPage() {
 
     let scriptAdded = false;
     const initPlayer = () => {
-      // If a player already exists, do not reinit
       if (playerRef.current) return;
 
       const firstVideoId = room.queue?.[0]?.TrackId || PLACEHOLDER_VIDEO;
@@ -332,16 +369,16 @@ export default function PartyRoomPage() {
         height: "360",
         width: "640",
         videoId: firstVideoId,
-        playerVars: { autoplay: 1, controls: 1, origin: window.location.origin, mute: 1, playsinline: 1},
+        playerVars: { autoplay: 1, controls: 1, origin: window.location.origin, mute: 1, playsinline: 1 },
         events: {
           onReady: (e) => {
             playerRef.current = e.target;
             setPlayerReady(true);
             playerReadyRef.current = true;
-            // Keep initial mute state consistent
+
             if (isMuted) e.target.mute();
             else e.target.unMute();
-            // If there was a pending video set before player was ready, cue it now
+
             if (pendingVideoRef.current?.videoId) {
               const pvd = pendingVideoRef.current;
               loadVideoSafely(pvd.videoId, pvd.seek ?? 0, pvd.autoPlay ?? true);
@@ -352,43 +389,43 @@ export default function PartyRoomPage() {
           onStateChange: (event) => {
             const p = playerRef.current;
             if (!p || !connectionRef.current) return;
+
+            // if we are currently applying a remote sync, don't broadcast
+            if (isApplyingRemoteRef.current) {
+              return;
+            }
+
+            const timeSinceLastSync = Date.now() - lastSyncTimeRef.current;
+            if (timeSinceLastSync < 2000) {
+              return;
+            }
+
             const time = p.getCurrentTime();
 
-            // Handle CUED state (5) for pending autoplay
             if (typeof window !== "undefined" && window.YT && event.data === window.YT.PlayerState.CUED) {
               const pending = pendingVideoRef.current;
               if (pending?.autoPlay) {
                 try {
-                  // Seek to start position if specified
                   if (pending.seek != null) {
-                    suppressBroadcastRef.current = true; // suppress broadcasts during seek
                     p.seekTo(pending.seek, true);
                   }
                   p.playVideo();
                 } catch { }
-                // Clear pending video
                 pendingVideoRef.current = null;
-
-                // Re-enable broadcasting after a short delay to avoid false PAUSE
-                setTimeout(() => {
-                  suppressBroadcastRef.current = false;
-                }, 500);
               }
+              return; // Don't broadcast CUED events
             }
 
-            // Only broadcast Play/Pause if not suppressed
-            if (!suppressBroadcastRef.current) {
-              if (event.data === window.YT.PlayerState.PLAYING) {
-                connectionRef.current.invoke("Play", roomId, time).catch(() => { });
-              } else if (event.data === window.YT.PlayerState.PAUSED) {
-                connectionRef.current.invoke("Pause", roomId, time).catch(() => { });
-              }
-            }
-
-            // Handle video ended
-            if (event.data === window.YT.PlayerState.ENDED) {
+            // Only broadcast user-initiated state changes
+            if (event.data === window.YT.PlayerState.PLAYING) {
+              console.log("Broadcasting Play (user initiated)");
+              connectionRef.current.invoke("Play", roomId, time).catch(() => { });
+            } else if (event.data === window.YT.PlayerState.PAUSED) {
+              console.log("Broadcasting Pause (user initiated)");
+              connectionRef.current.invoke("Pause", roomId, time).catch(() => { });
+            } else if (event.data === window.YT.PlayerState.ENDED) {
               const now = Date.now();
-              if (now - lastEndedRef.current < 2000) return; // debounce multiple ENDED events
+              if (now - lastEndedRef.current < 2000) return;
               lastEndedRef.current = now;
 
               try {
@@ -405,7 +442,6 @@ export default function PartyRoomPage() {
     if (window.YT && window.YT.Player) {
       initPlayer();
     } else {
-      // Prevent double-inserting the script
       if (!document.getElementById("youtube-iframe-api")) {
         const tag = document.createElement("script");
         tag.id = "youtube-iframe-api";
@@ -414,21 +450,16 @@ export default function PartyRoomPage() {
         window.onYouTubeIframeAPIReady = initPlayer;
         document.body.appendChild(tag);
       } else {
-        // If script exists but API not ready yet, ensure global ready hook is set
         window.onYouTubeIframeAPIReady = initPlayer;
       }
     }
 
     return () => {
-      if (scriptAdded && document.getElementById("youtube-iframe-api")) {
-      }
       try {
         if (window.onYouTubeIframeAPIReady && window.onYouTubeIframeAPIReady === initPlayer) {
           window.onYouTubeIframeAPIReady = undefined;
         }
-      } catch {
-        // ignore
-      }
+      } catch { }
     };
   }, [room, roomId, isMuted, loadVideoSafely]);
 
@@ -437,10 +468,8 @@ export default function PartyRoomPage() {
     const el = chatRef.current;
     if (!el) return;
 
-    const threshold = 50; // px from bottom
-    const atBottom =
-      el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
-
+    const threshold = 50;
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
     shouldAutoScrollRef.current = atBottom;
   };
 
