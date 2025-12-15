@@ -44,6 +44,35 @@ public class RoomStateServiceTests
   }
 
   [Fact]
+  public void HasPlayback_WhenNoPlayback_ReturnsFalse()
+  {
+      var service = new RoomStateService();
+
+      Assert.False(service.HasPlayback("roomX"));
+  }
+
+  [Fact]
+  public void GetPlayback_WhenPlaybackDoesNotExist_ReturnsNull()
+  {
+      var service = new RoomStateService();
+
+      var playback = service.GetPlayback("missing");
+
+      Assert.Null(playback);
+  }
+
+  [Fact]
+  public void EnsureRoomExists_CreatesEmptyRoom()
+  {
+      var service = new RoomStateService();
+
+      service.EnsureRoomExists(10);
+
+      Assert.True(service.RoomExists(10));
+      Assert.Empty(service.GetUsersInRoom(10));
+  }
+
+  [Fact]
   public void AddUserToRoom_NewRoom_UserIsAdded()
   {
     var service = new RoomStateService();
@@ -106,6 +135,17 @@ public class RoomStateServiceTests
     Assert.DoesNotContain("user1", service.GetUsersInRoom(1));
     Assert.DoesNotContain("user1", service.GetUsersInRoom(2));
     Assert.Contains("user2", service.GetUsersInRoom(3));
+  }
+  
+  [Fact]
+  public void RemoveUserFromAllRooms_UserInNoRooms_ReturnsEmptyList()
+  {
+      var service = new RoomStateService();
+      service.AddUserToRoom(1, "user2");
+
+      var removed = service.RemoveUserFromAllRooms("userX");
+
+      Assert.Empty(removed);
   }
 
   [Fact]

@@ -9,7 +9,7 @@
 
     <PropertyGroup>
       <CollectCoverage>true</CollectCoverage>
-      <ExcludeByFile>**/Migrations/*.cs,**/Program.cs, **/Models/*.cs,**/Middleware/*.cs,**/Exceptions/*.cs</ExcludeByFile>
+      <ExcludeByFile>**/Migrations/*.cs,**/Program.cs,**/Models/*.cs,**/Middleware/*.cs,**/Exceptions/*.cs,**/Dtos/*.cs,**/Hubs/*.cs</ExcludeByFile>
     </PropertyGroup>
 
     <ItemGroup>
