@@ -98,9 +98,9 @@ public class PartyRoomService : IPartyRoomService
   {
     var room = await GetByIdAsync(id); // Will throw NotFoundException if not found
 
+    var members = room.Members ?? new List<string>();
+
     var currentCount = room.Members?.Count ?? 0;
-    if (currentCount <= 0)
-      throw new InvalidOperationException("Party room is already empty.");
     
     _logger.LogInformation("User left party room: {RoomId}", id);
   }
